@@ -20,7 +20,7 @@ import sys
 import time
 
 fileDir = os.path.dirname(os.path.realpath(__file__))
-sys.path.append(os.path.join(fileDir, "..", ".."))
+#sys.path.append(os.path.join(fileDir, "..", ".."))
 import pdb
 import txaio
 txaio.use_twisted()
@@ -66,7 +66,8 @@ if STORE_IMG_DEBUG:
     rep_file_name = EXPERIMENT+ '/reps.txt'
     rep_file = open(rep_file_name, 'w+')
     
-modelDir = os.path.join(fileDir, '..', '..', 'models')
+#modelDir = os.path.join(fileDir, '..', '..', 'models')
+modelDir = os.path.join(fileDir, 'models')
 dlibModelDir = os.path.join(modelDir, 'dlib')
 openfaceModelDir = os.path.join(modelDir, 'openface')
 
