@@ -23,19 +23,11 @@ import Queue
 import struct
 import os
 import sys
-if os.path.isdir("../gabriel") is True:
-    sys.path.insert(0, "..")
-
-from gabriel.proxy.common import AppProxyStreamingClient
-from gabriel.proxy.common import AppProxyThread
-from gabriel.proxy.common import ResultpublishClient
-from gabriel.proxy.common import Protocol_measurement
-from gabriel.proxy.common import get_service_list
-from gabriel.common.config import ServiceMeta as SERVICE_META
-from gabriel.common.config import Const
-from face_swap import FaceTransformation
-
 import pdb
+import multiprocessing
+from optparse import OptionParser
+import pprint
+from face_swap import FaceTransformation
 from PIL import Image, ImageOps
 import io, StringIO
 import numpy as np
@@ -44,30 +36,66 @@ import json
 import cProfile, pstats, StringIO
 from NetworkProtocol import *
 import cv2
+import Queue
 from demo_config import Config
-from datetime import datetime
-from gabriel.common.protocol import Protocol_measurement as Protocol_measurement
+import zmq
+from time import sleep
 
+gabriel_path=os.path.expanduser("~/gabriel-v2/gabriel/server")
+if os.path.isdir(gabriel_path) is True:
+    sys.path.insert(0, gabriel_path)
+
+import gabriel
+import gabriel.proxy
+
+LOG = gabriel.logging.getLogger(__name__)
+DEBUG = Config.DEBUG
 prev_timestamp = time.time()*1000
+
+# move to a tool?
+def process_command_line(argv):
+    VERSION = 'gabriel proxy : %s' % gabriel.Const.VERSION
+    DESCRIPTION = "Gabriel cognitive assistance"
+
+    parser = OptionParser(usage='%prog [option]', version=VERSION,
+            description=DESCRIPTION)
+
+    parser.add_option(
+            '-s', '--address', action='store', dest='address',
+            help="(IP address:port number) of directory server")
+    settings, args = parser.parse_args(argv)
+    if len(args) >= 1:
+        parser.error("invalid arguement")
+
+    if hasattr(settings, 'address') and settings.address is not None:
+        if settings.address.find(":") == -1:
+            parser.error("Need address and port. Ex) 10.0.0.1:8081")
+    return settings, args
 
 
 # bad idea to transfer image back using json
-class DummyVideoApp(AppProxyThread):
+class DummyVideoApp(gabriel.proxy.CognitiveProcessThread):
 
-    def gen_response(self, response_type, value):
+    def gen_response(self, response_type, value, frame=None):
         msg = {
             'type': response_type,
             'value': value,
             'time': int(time.time()*1000)
             }
+        if frame != None:
+            msg['frame']=base64.b64encode(frame)
+            
         return json.dumps(msg)
         
     
-    def process(self, image):
+    def process(self, rgb_img, bgr_img):
+        # pr = cProfile.Profile()
+        # pr.enable()
+
         # preprocessing techqniues : resize?
 #        image = cv2.resize(nxt_face, dim, interpolation = cv2.INTER_AREA)
 
-        face_snippets_list = transformer.swap_face(image)
+        face_snippets_list = transformer.swap_face(rgb_img, bgr_img)
         face_snippets_string = {}
         face_snippets_string['num'] = len(face_snippets_list)
         for idx, face_snippet in enumerate(face_snippets_list):
@@ -77,10 +105,15 @@ class DummyVideoApp(AppProxyThread):
         return result
 
     def handle(self, header, data):
+        # ! IMPORTANT !
+        # python + android client sent out BGR frame
+        
         # pr = cProfile.Profile()
         # pr.enable()
         
         global prev_timestamp
+        global DEBUG
+        global zmq_socket
         
         # locking to make sure tracker update thread is not interrupting
         transformer.tracking_thread_idle_event.clear()
@@ -88,21 +121,14 @@ class DummyVideoApp(AppProxyThread):
         if Config.DEBUG:
             cur_timestamp = time.time()*1000
             interval = cur_timestamp - prev_timestamp
-            sys.stdout.write("packet interval: %d\n"%interval)
+            sys.stdout.write("packet interval: %d\n header: %s\n"%(interval, header))
             start = time.time()
-
-        sys.stdout.write('received {}:{}'.format(header['id'], header[Protocol_measurement.JSON_KEY_APP_RECV_TIME]))
-
         header_dict = header
 
         if 'reset' in header_dict:
             reset = header_dict['reset']
-#            pdb.set_trace()            
             print 'reset openface state'            
             if reset:
-#                transformer.terminate()
-#                time.sleep(2)
-#                transformer = FaceTransformation()
                 transformer.openface_client.reset()                
                 resp=self.gen_response(AppDataProtocol.TYPE_reset, True)
                 transformer.training=False
@@ -155,6 +181,8 @@ class DummyVideoApp(AppProxyThread):
                 resp=self.gen_response(AppDataProtocol.TYPE_get_person, state_string)
                 sys.stdout.write('send out response {}\n'.format(resp))
                 sys.stdout.flush()
+                with open('/home/faceswap-admin/openface-state.txt','w') as f:
+                    f.write(state_string)
             else:
                 sys.stdout.write('error: has get_person in header, but the value is false')
                 resp=self.gen_response(AppDataProtocol.TYPE_get_person, False)
@@ -170,6 +198,7 @@ class DummyVideoApp(AppProxyThread):
             else:
                 raise TypeError('unsupported type for name of a person')
             resp=self.gen_response(AppDataProtocol.TYPE_add_person, name)
+            return resp
             
         elif 'face_table' in header_dict:
             face_table_string = header_dict['face_table']
@@ -202,39 +231,42 @@ class DummyVideoApp(AppProxyThread):
         # image = cv2.merge([r,g,b])     # switch it to rgb
 
         # just pixel data
-        data=np.fromstring(data, dtype=np.uint8)
-        bgr_img=cv2.imdecode(data,cv2.IMREAD_COLOR)
-#        cv2.imwrite('/tmp/bgr_image.jpg', bgr_img)        
-        b,g,r = cv2.split(bgr_img)       # get b,g,r
-        image = cv2.merge([r,g,b])     # switch it to rgb
-#        cv2.imwrite('/tmp/image.jpg', image)
+        np_data=np.fromstring(data, dtype=np.uint8)
+        bgr_img=cv2.imdecode(np_data,cv2.IMREAD_COLOR)
+        rgb_img = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2RGB)        
             
         if training:
-            cnt, face_json = transformer.train(image, name)
+            cnt, face_json = transformer.train(rgb_img, name)
             if face_json is not None:
                 msg = {
                     'num': 1,
                     'cnt': cnt,
                     '0': face_json
                 }
-                msg = json.dumps(msg)
             else:
                 # time is a random number to avoid token leak
                 msg = {
                     'num': 0,
-                    'cnt': cnt,
+                    'cnt': cnt
                 }
-            resp= self.gen_response(AppDataProtocol.TYPE_train, msg)
+            msg = json.dumps(msg)                
+            resp= self.gen_response(AppDataProtocol.TYPE_train, msg, frame=np_data)
         else:
             # swap faces
-            snippets = self.process(image)
-            resp= self.gen_response(AppDataProtocol.TYPE_detect, snippets)
+            snippets = self.process(rgb_img, bgr_img)
+            resp= self.gen_response(AppDataProtocol.TYPE_detect, snippets, frame=np_data)
 
         if Config.DEBUG:
             end = time.time()
             print('total processing time: {}'.format((end-start)*1000))
             prev_timestamp = time.time()*1000
 
+        # push client image onto display queue for flask
+#        sys.stdout.write('before sending out zmq packet\n')
+#        zmq_socket.send(data.tostring())
+#        sys.stdout.write('after sending out zmq packet\n')        
+#        cv2.imwrite('frame.jpg', bgr_img)        
+            
         transformer.tracking_thread_idle_event.set()
 
         # pr.disable()
@@ -244,52 +276,47 @@ class DummyVideoApp(AppProxyThread):
         # ps.print_stats()
         # print s.getvalue()
         
+
+        # TODO: hacky way to wait detector to finish...
+        sleep(0.04)
         return resp
-
-class DummyAccApp(AppProxyThread):
-    def chunks(self, l, n):
-        for i in xrange(0, len(l), n):
-            yield l[i:i + n]
-
-    def handle(self, header, acc_data):
-        ACC_SEGMENT_SIZE = 16# (int, float, float, float)
-        for chunk in self.chunks(acc_data, ACC_SEGMENT_SIZE):
-            (acc_time, acc_x, acc_y, acc_z) = struct.unpack("!ifff", chunk)
-            print "time: %d, acc_x: %f, acc_y: %f, acc_x: %f" % \
-                    (acc_time, acc_x, acc_y, acc_z)
-        return None
 
 
 if __name__ == "__main__":
-    transformer = FaceTransformation()    
-    result_queue = list()
+    transformer = FaceTransformation()
+#    zmq_context = zmq.Context()
+#    zmq_socket=zmq_context.socket(zmq.PUSH)
+#    zmq_socket.bind("ipc:///tmp/gabriel-feed")
 
-    sys.stdout.write("Discovery Control VM\n")
-    service_list = get_service_list(sys.argv)
-    video_ip = service_list.get(SERVICE_META.VIDEO_TCP_STREAMING_ADDRESS)
-    video_port = service_list.get(SERVICE_META.VIDEO_TCP_STREAMING_PORT)
+    settings, args = process_command_line(sys.argv[1:])
+    ip_addr, port = gabriel.network.get_registry_server_address(settings.address)
+    service_list = gabriel.network.get_service_list(ip_addr, port)
+    LOG.info("Gabriel Server :")
+    LOG.info(pprint.pformat(service_list))
 
+    video_ip = service_list.get(gabriel.ServiceMeta.VIDEO_TCP_STREAMING_IP)
+    video_port = service_list.get(gabriel.ServiceMeta.VIDEO_TCP_STREAMING_PORT)
+    ucomm_ip = service_list.get(gabriel.ServiceMeta.UCOMM_SERVER_IP)
+    ucomm_port = service_list.get(gabriel.ServiceMeta.UCOMM_SERVER_PORT)
+
+    # image receiving and processing threads
+    image_queue = Queue.Queue(gabriel.Const.APP_LEVEL_TOKEN_SIZE)
+    print "TOKEN SIZE OF OFFLOADING ENGINE: %d" % gabriel.Const.APP_LEVEL_TOKEN_SIZE # TODO
+    video_receive_client = gabriel.proxy.SensorReceiveClient((video_ip, video_port), image_queue)
+    video_receive_client.start()
+    video_receive_client.isDaemon = True
     
-    return_addresses = service_list.get(SERVICE_META.RESULT_RETURN_SERVER_LIST)
-
-    # image receiving thread
-    video_frame_queue = Queue.Queue(Const.APP_LEVEL_TOKEN_SIZE)
-#    video_frame_queue = Queue.Queue(10)
-    print "TOKEN SIZE OF OFFLOADING ENGINE: %d" % Const.APP_LEVEL_TOKEN_SIZE
-    video_client = AppProxyStreamingClient((video_ip, video_port), video_frame_queue)
-    video_client.start()
-    video_client.isDaemon = True
-    dummy_video_app = DummyVideoApp(video_frame_queue, result_queue, \
-            app_id=Protocol_measurement.APP_DUMMY) # dummy app for image processing
+    result_queue = multiprocessing.Queue()
+    print result_queue._reader
+    dummy_video_app = DummyVideoApp(image_queue, result_queue, engine_id = 'dummy') # dummy app for image processing
     dummy_video_app.start()
     dummy_video_app.isDaemon = True
 
-    # result pub/sub
-    result_pub = ResultpublishClient(return_addresses, result_queue)
+    # result publish
+    result_pub = gabriel.proxy.ResultPublishClient((ucomm_ip, ucomm_port), result_queue)
     result_pub.start()
     result_pub.isDaemon = True
 
-    
     try:
         while True:
             time.sleep(1)
@@ -298,11 +325,13 @@ if __name__ == "__main__":
     except KeyboardInterrupt as e:
         sys.stdout.write("user exits\n")
     finally:
-        if transformer is not None:
-            transformer.terminate()
-        if video_client is not None:
-            video_client.terminate()
+        if video_receive_client is not None:
+            video_receive_client.terminate()
         if dummy_video_app is not None:
             dummy_video_app.terminate()
+        if transformer is not None:
+            transformer.terminate()
+        if flask_process is not None and flask_process.is_alive():
+            flask_process.terminate()
+            flask_process.join()
         result_pub.terminate()
-

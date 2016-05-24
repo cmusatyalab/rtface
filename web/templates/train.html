@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block page_content %}
+<div class="container">
+    <h1>Train</h1>
+   <div class="container">
+      <p>Available Videos:</p>
+      <ul>
+        <form id="train_form" method="post" action="/train" enctype="multipart/form-data">
+        {% for n in video_list %}
+          <p><input type="checkbox" name="checkbox" value="{{n}}">{{n}}  (object: {{object_names[loop.index0]}})</p>
+        {% endfor %}
+         <p>Enter Model Name: <input id="model_name" type="text" name="model_name" value=""></p>
+         <button id="train_form_submit" class="button">Train</button>
+        </form>
+      </ul>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+<!-- The jQuery UI widget factory, can be omitted if jQuery UI is already included -->
+<script src="/static/js/vendor/jquery.ui.widget.js"></script>
+<script src="/static/js/custom.js"></script>
+<script>
+$(document).ready(function() {          
+   $("#train_form_submit").click(function(){
+        var note = $('<div id="submitdialog"></div>').appendTo(".container");
+        var overlay = $('<div id="turkic_overlay"></div>').appendTo(".container");
+        note.html("Apply Perceptural Hashing to Remove Similar Frames...");
+    });
+});
+</script>
+
+{% endblock %}

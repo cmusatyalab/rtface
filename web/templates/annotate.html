@@ -1,0 +1,94 @@
+<html>
+  <head>
+    <title>Annotorious Example Page</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='annotorious/example/highlight.js/zenburn.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='annotorious/css/theme-dark/annotorious-dark.css') }}" />
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+    <script src="{{ url_for('static', filename='annotorious/example/highlight.js/highlight.pack.js') }}"></script>
+    <script src="{{ url_for('static', filename='annotorious/annotorious.min.js') }}"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+    <script> anno.addHandler('onAnnotationCreated', function(annotation) {
+    x=annotation.shapes[0].geometry.x;
+    y=annotation.shapes[0].geometry.y;
+    w=annotation.shapes[0].geometry.width;
+    h=annotation.shapes[0].geometry.height;
+    img_src=$("img").attr("src");
+    img_width=$("img").width();
+    img_height=$("img").height();
+    x=x*img_width
+    y=y*img_height
+    w=w*img_width
+    h=h*img_height
+    $.ajax({
+      type: "GET",
+      url: "/save_annotation",
+      data: {img:img_src , x:x, y:y, w:w, h:h},
+      cache: false
+    });
+});</script>
+    <style>
+      html, body {
+        background-color:#dfdfdf;
+        min-height:100%;
+        padding:0;
+        margin:0;
+        font-family:"helvetica neue","helvetica","arial","sans-serif";
+        font-size:14px;
+        line-height:22px;
+      }
+
+      h2 {
+        margin-top:40px;
+      }
+
+      a {
+        color:#333;
+      }
+
+      .column {
+        width:60%;
+        min-width:800px;
+        margin:0 auto;
+        padding:10px 40px 80px 40px;
+        background-color:#eaeaea;
+        min-height:100%;
+        border-width:0px 1px;
+        border-style:solid;
+        border-color:#dadada;
+      }
+
+      .image-caption {
+        line-height: normal;
+        font-weight: bold;
+        font-size: 12px;
+        text-align: center;
+      }
+    </style>    
+  </head>
+  <body>
+    <div style="float:right; margin:10px 0px 10px 30px;">
+      <img src="/image/{{img.path}}" class="annotatable">
+      <p class="image-caption">
+        {{img.name}}
+      </p>
+    </div>
+    <form action="/track" method="get">
+      <input type="hidden" name="img_path" value="/image/{{img.path}}">
+        <input type="submit" value="start track">
+    </form>
+
+
+<!--
+    {% for img in imgs %}
+    <div style="float:right; margin:10px 0px 10px 30px;">
+      <img src={{img.path}} class="annotatable">
+      <p class="image-caption">
+        {{img.name}}
+      </p>
+    </div>
+    {% endfor %}
+    </div>
+-->
+  </body>
+</html>

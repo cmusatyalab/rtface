@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block page_content %}
+    <div class="container">
+      <div class="header">
+        <h3 class="text-muted">Label</h3>
+      </div>
+      <hr/>
+      <div>
+
+   <div class="container">
+      <p>Available Videos:</p>
+      <ul>
+        {% for n in video_list %}
+        <li>{{n}}</li>
+        <form id="form_{{n}}" method="post" action="{{url_for('label_video', video_name=n)}}" enctype="multipart/form-data">
+        Object Name<input type="text" name="object_name" value="{{object_names[loop.index0]}}"><br />
+        <button id="{{n}}" class="button">Click Me!</button>
+        </form>
+        {% endfor %}
+      </ul>
+    </div>
+    <div class="container">
+      <div class="header">
+        <h3 class="text-muted">Label</h3>
+      </div>
+      <hr/>
+      <div>
+
+   <div class="container">
+      <p>Available Videos:</p>
+      <ul>
+        {% for n in video_list %}
+        <li>{{n}}</li>
+        <form id="form_{{n}}" method="post" action="{{url_for('label_video', video_name=n)}}" enctype="multipart/form-data">
+        Object Name<input type="text" name="object_name" value="{{object_names[loop.index0]}}"><br />
+        <button id="{{n}}" class="button">Click Me!</button>
+        </form>
+        {% endfor %}
+      </ul>
+    </div>
+{% endblock %}
+
+    <style>
+      #overlay {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      right: 0;
+      background: #000;
+      opacity: 0.8;
+      filter: alpha(opacity=80);
+      }
+      #loading {
+      width: 50px;
+      height: 57px;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      margin: -28px 0 0 -25px;
+      }
+    </style>
+
+    <script src="http://code.jquery.com/jquery-1.10.2.min.js"></script>
+    <script src="http://netdna.bootstrapcdn.com/bootstrap/3.0.0/js/bootstrap.min.js"></script>
+  </body>
+</html>
+
+<script>
+function loading(){
+        // add the overlay with loading image to the page
+        var over = '<div id="overlay">' +
+            '<img id="loading" src="http://bit.ly/pMtW1K">' +
+            '</div>';
+        $(over).appendTo('body');
+
+        // click on the overlay to remove it
+        //$('#overlay').click(function() {
+        //    $(this).remove();
+        //});
+
+        // hit escape to close the overlay
+        $(document).keyup(function(e) {
+            if (e.which === 27) {
+                $('#overlay').remove();
+            }
+        });
+};
+
+$(document).ready(function() {          
+    $('.button').each(function(){
+             $(this).click(function(){
+               var form_id = 'form_' + $(this).attr('id');
+               loading()
+             $('#'+form_id).submit();
+        });
+    });
+});
+</script>

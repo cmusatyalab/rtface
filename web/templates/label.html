@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block page_content %}
+    <div class="container">
+      <div class="header">
+        <h3 class="text-muted">Label</h3>
+      </div>
+      <hr/>
+      <div>
+
+   <div class="container">
+      <p>Available Videos:</p>
+      <ul>
+        {% for n in video_list %}
+        <li>{{n}}</li>
+        <form id="form_{{n}}" method="post" action="{{url_for('label_video', video_name=n)}}" enctype="multipart/form-data">
+        Object:
+        <input id="input_{{n}}" type="text" name="object_name" value="{{object_names[loop.index0]}}">
+        <button id="{{n}}" class="submit_button">Export To Annotation Tool</button>
+        </form>
+        <br />
+        {% endfor %}
+      </ul>
+      <div id="submitdialog"></div>
+    </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+<!-- The jQuery UI widget factory, can be omitted if jQuery UI is already included -->
+<script src="/static/js/vendor/jquery.ui.widget.js"></script>
+<script src="/static/js/custom.js"></script>
+<script>
+$(document).ready(function() {          
+    $('.submit_button').each(function(){
+             $(this).click(function(){
+               var id = $(this).attr('id');
+               var form_id = 'form_' + id;
+               var input_id = 'input_' + id;
+               var object_name=$('#'+input_id).val();
+               console.log('object_name: '+object_name);
+               var note = $("#submitdialog")
+               var overlay = $('<div id="turkic_overlay"></div>').appendTo(".container");
+               note.html("Parsing Videos To Images...");
+//               loading();
+               if (object_name != ""){
+                 $('#'+form_id).submit();
+               }
+        });
+    });
+});
+</script>
+{% endblock %}
