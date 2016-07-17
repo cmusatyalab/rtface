@@ -46,11 +46,11 @@ class FaceTransformation(object):
                     filemode='w+'                            
         )
         formatter = logging.Formatter('%(asctime)-15s %(levelname)-8s %(processName)s %(message)s')   
-        self.logger=logging.getLogger(__name__)
-        self.logger.setLevel(custom_logger_level)
+        LOG=logging.getLogger(__name__)
+        LOG.setLevel(custom_logger_level)
         ch = logging.StreamHandler(sys.stdout)
         ch.setFormatter(formatter)
-        self.logger.addHandler(ch)
+        LOG.addHandler(ch)
         
         self.cnt=0
         self.detector = dlib.get_frontal_face_detector()
@@ -270,7 +270,7 @@ class FaceTransformation(object):
                 except Queue.Empty:
                     pass
                     
-#                self.logger.info('detect skipped # {} images'.format(cnt))
+#                LOG.info('detect skipped # {} images'.format(cnt))
                 rois = detect_faces(frame, detector)
                 LOG.debug('detected # {} faces'.format(len(rois)))
                 if (len(rois)>0):
@@ -379,7 +379,7 @@ class FaceTransformation(object):
             self.openface_client.setTraining(False)
 
         self.image_width=rgb_img.shape[1]
-#        self.logger.info('received image. width: {}'.format(self.image_width))
+#        LOG.info('received image. width: {}'.format(self.image_width))
 
         # track existing faces
         faces=self.track_faces(rgb_img, self.faces)
@@ -402,7 +402,7 @@ class FaceTransformation(object):
         # test add in profile face detector
         profile_faces=FaceDetection.detect_profile_faces(bgr_img, flip=True)
         for (x1,y1,x2,y2) in profile_faces:
-            self.logger.debug('detect profile faces: {} {} {} {}'.format(x1,y1,x2,y2))
+            LOG.debug('detect profile faces: {} {} {} {}'.format(x1,y1,x2,y2))
 #            (x1, y1, x2, y2) = enlarge_roi( (x1,y1,x2,y2), padding, width, height)
             profile_face=FaceROI( (int(x1), int(y1), int(x2), int(y2)), name='profile_face')
             try:
@@ -416,7 +416,7 @@ class FaceTransformation(object):
 #            bgr_frame[y1:y2+1, x1:x2+1]=blur
 
         self.img_queue.put(rgb_img)                
-        self.logger.debug('# faces returned: {}'.format(len(self.faces)))
+        LOG.debug('# faces returned: {}'.format(len(self.faces)))
         return face_snippets
 
     def addPerson(self, name):
@@ -457,5 +457,5 @@ class FaceTransformation(object):
         if success:
             self.training_cnt +=1
 
-        self.logger.info("training-finished adding frame")                        
+        LOG.info("training-finished adding frame")                        
         return self.training_cnt, face.get_json()
