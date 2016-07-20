@@ -22,31 +22,26 @@ def create_dlib_tracker(frame, roi):
                         dlib.rectangle(roi_x1, roi_y1, roi_x2, roi_y2))
     return tracker
 
-def create_tracker(frame, roi):
-#    tracker = camshiftTracker()
-    # using mean shift for now
-    tracker = meanshiftTracker() # 
+def create_tracker(frame, roi, use_dlib=False):
+    if use_dlib:
+        tracker = dlib.correlation_tracker()        
+    else:
+        tracker = meanshiftTracker() 
     (roi_x1, roi_y1, roi_x2, roi_y2) = roi
     tracker.start_track(frame,
                         dlib.rectangle(roi_x1, roi_y1, roi_x2, roi_y2))
     return tracker
 
-def create_trackers(frame, rois, dlib=False):
+def create_trackers(frame, rois, use_dlib=False):
     trackers = []
     for roi in rois:
-        if (dlib):
-            tracker = create_dlib_tracker(frame,roi)             
+        if use_dlib:
+            tracker = create_tracker(frame,roi, use_dlib=True)             
         else:
             tracker = create_tracker(frame,roi)
         trackers.append(tracker)
     return trackers
 
-def update_trackers(trackers, frame, rgb_to_hsv=True):
-    if rgb_to_hsv:
-        hsv_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
-    for idx, tracker in enumerate(trackers):
-        tracker.update(hsv_frame, is_hsv=True)
-    
 # dlib wrappers    
 def drectangle_to_tuple(drectangle):
     cur_roi = (int(drectangle.left()),
@@ -114,7 +109,7 @@ def filter_small_faces(dets):
             filtered_dets.append(d)
     return filtered_dets
     
-@timeit
+#@timeit
 def detect_faces(frame, detector, largest_only=False, upsample_num_times=0, adjust_threshold=0.0):
     # upsampling will take a lot of time
     # http://dlib.net/face_detector.py.html

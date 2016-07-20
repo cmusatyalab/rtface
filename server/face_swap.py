@@ -131,7 +131,7 @@ class FaceTransformation(object):
                             face.name = nearest_face.name
                         else:
                             face.name=""
-                        tracker = create_tracker(tracker_frame, face.roi, use_dlib=True)
+                        tracker = create_tracker(tracker_frame, face.roi, use_dlib=Config.DLIB_TRACKING)
                         face.tracker = tracker
                         cnt+=1
 
@@ -294,13 +294,17 @@ class FaceTransformation(object):
                     imwrite_rgb(self.pic_output_path(str(frame_id)+'_detect'), frame)
                     
                 frame_id+=1
+                # meanshift tracker for catching up
                 trackers = create_trackers(frame, rois)
                 frame_available = True
                 frame_cnt = 0
                 while frame_available:
                     try:
                         frame = img_queue.get_nowait()
-                        update_trackers(trackers, frame)
+                        hsv_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
+                        for tracker in trackers:
+                            tracker.update(hsv_frame, is_hsv=True)
+                            
                         rois=[drectangle_to_tuple(tracker.get_position()) for tracker in trackers]
                         if WRITE_PICTURE_DEBUG:                        
                             draw_rois(frame,rois)
@@ -334,8 +338,7 @@ class FaceTransformation(object):
         LOG.debug('# faces tracking {} '.format(len(faces)))
         to_be_removed_face = []
         # cvtColor is an expensive operation
-        # todo: no need for hsv_frame anymore
-        # need a wrapper around tracker to create a unified api
+        # only convert frame to hsv frame once for meanshift or camshift?
 #        hsv_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
         if (len(faces) == 0):
             # sleep for 10 ms
@@ -387,7 +390,7 @@ class FaceTransformation(object):
         self.faces=faces
         self.faces_lock.release()        
         
-        ret = []
+        face_snippets = []
         for face in self.faces:
             try:
                 face_json = face.get_json(send_data=False)
