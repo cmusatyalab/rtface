@@ -49,8 +49,6 @@ import gabriel
 import gabriel.proxy
 
 LOG = gabriel.logging.getLogger(__name__)
-DEBUG = Config.DEBUG
-prev_timestamp = time.time()*1000
 
 # move to a tool?
 def process_command_line(argv):
@@ -74,7 +72,11 @@ def process_command_line(argv):
 
 
 # bad idea to transfer image back using json
-class DummyVideoApp(gabriel.proxy.CognitiveProcessThread):
+class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
+    def __init__(self, transformer, *args, **kwargs):
+        super(self.__class__, self).__init__(*args, **kwargs)
+        self.transformer = transformer
+        self.prev_timestamp = time.time()*1000
 
     def gen_response(self, response_type, value, frame=None):
         msg = {
@@ -86,16 +88,10 @@ class DummyVideoApp(gabriel.proxy.CognitiveProcessThread):
             msg['frame']=base64.b64encode(frame)
             
         return json.dumps(msg)
-        
     
     def process(self, rgb_img, bgr_img):
-        # pr = cProfile.Profile()
-        # pr.enable()
-
         # preprocessing techqniues : resize?
-#        image = cv2.resize(nxt_face, dim, interpolation = cv2.INTER_AREA)
-
-        face_snippets_list = transformer.swap_face(rgb_img, bgr_img)
+        face_snippets_list = self.transformer.swap_face(rgb_img, bgr_img)
         face_snippets_string = {}
         face_snippets_string['num'] = len(face_snippets_list)
         for idx, face_snippet in enumerate(face_snippets_list):
@@ -104,107 +100,110 @@ class DummyVideoApp(gabriel.proxy.CognitiveProcessThread):
         result = json.dumps(face_snippets_string)
         return result
 
+    def handle_reset(self, header_dict):
+        reset = header_dict['reset']
+        print 'reset openface state'            
+        if reset:
+            self.transformer.openface_client.reset()
+            header_dict['type']=AppDataProtocol.TYPE_reset
+            self.transformer.training=False
+            return ""
+
+    def handle_get_state(self, header_dict):
+        get_state = header_dict['get_state']
+        print 'get openface state'
+        sys.stdout.flush()            
+        if get_state:
+            resp = self.transformer.openface_client.getState()
+            header_dict['type']=AppDataProtocol.TYPE_get_state
+            print 'send out response {}'.format(resp[:10])
+            sys.stdout.flush()
+            return str(resp)
+
+    def handle_load_state(self, header_dict, data):
+        is_load_state = header_dict['load_state']
+        if is_load_state:
+            sys.stdout.write('loading openface state')
+            sys.stdout.write(data[:30])
+            sys.stdout.flush()
+            state_string = data
+            self.transformer.openface_client.setState(state_string)
+            header_dict['type']=AppDataProtocol.TYPE_load_state
+        else:
+            sys.stdout.write('error: has load_state in header, but the value is false')
+        return ""
+
+    def handle_remove_person(self, header_dict):
+        print 'removing person'
+        name = header_dict['remove_person']
+        remove_success=False
+        resp=""
+        if isinstance(name, basestring):
+            resp=self.transformer.openface_client.removePerson(name)
+            remove_success=json.loads(resp)['val']
+            print 'removing person :{} success: {}'.format(name, remove_success)
+        else:
+            print ('unsupported type for name of a person')
+        header_dict['type']=AppDataProtocol.TYPE_remove_person
+        return resp
+
+    def handle_get_person(self, header_dict):
+        sys.stdout.write('get person\n')
+        sys.stdout.flush()
+        is_get_person = header_dict['get_person']
+        state_string=""
+        if is_get_person:
+            state_string = self.transformer.openface_client.getPeople()
+            with open('/home/faceswap-admin/openface-state.txt','w') as f:
+                f.write(state_string)
+        else:
+            sys.stdout.write('error: has get_person in header, but the value is false')
+        header_dict['type']=AppDataProtocol.TYPE_get_person
+        return str(state_string)
+
+    def handle_add_person(self, header_dict):
+        print 'adding person'
+        name = header_dict['add_person']
+        if isinstance(name, basestring):
+            self.transformer.addPerson(name)
+            self.transformer.training_cnt = 0                
+            print 'training_cnt :{}'.format(self.transformer.training_cnt)
+        else:
+            raise TypeError('unsupported type for name of a person')
+        header_dict['type']=AppDataProtocol.TYPE_add_person
+        return str(name)
+        
     def handle(self, header, data):
         # ! IMPORTANT !
         # python + android client sent out BGR frame
         
-        # pr = cProfile.Profile()
-        # pr.enable()
-        
-        global prev_timestamp
-        global DEBUG
-        global zmq_socket
-        
         # locking to make sure tracker update thread is not interrupting
-        transformer.tracking_thread_idle_event.clear()
+        self.transformer.tracking_thread_idle_event.clear()
         
         if Config.DEBUG:
             cur_timestamp = time.time()*1000
-            interval = cur_timestamp - prev_timestamp
+            interval = cur_timestamp - self.prev_timestamp
             sys.stdout.write("packet interval: %d\n header: %s\n"%(interval, header))
             start = time.time()
         header_dict = header
 
         if 'reset' in header_dict:
-            reset = header_dict['reset']
-            print 'reset openface state'            
-            if reset:
-                transformer.openface_client.reset()                
-                resp=self.gen_response(AppDataProtocol.TYPE_reset, True)
-                transformer.training=False
-                return resp
-
-        if 'get_state' in header_dict:
-            get_state = header_dict['get_state']
-            print 'get openface state'
-            sys.stdout.flush()            
-            if get_state:
-                state_string = transformer.openface_client.getState()
-                resp=self.gen_response(AppDataProtocol.TYPE_get_state, state_string)
-                print 'send out response {}'.format(resp[:10])
-                sys.stdout.flush()
-                return resp
-
-        if 'load_state' in header_dict:
-            is_load_state = header_dict['load_state']
-            if is_load_state:
-                sys.stdout.write('loading openface state')
-                sys.stdout.write(data[:30])
-                sys.stdout.flush()
-                state_string = data
-                transformer.openface_client.setState(state_string)
-                resp=self.gen_response(AppDataProtocol.TYPE_load_state, True)
-            else:
-                sys.stdout.write('error: has load_state in header, but the value is false')
-                resp=self.gen_response(AppDataProtocol.TYPE_load_state, False)
-            return resp
-            
+            return self.handle_reset(header_dict)
+        elif 'get_state' in header_dict:
+            return self.handle_get_state(header_dict)
+        elif 'load_state' in header_dict:
+            return self.handle_load_state(header_dict,data)
         if 'remove_person' in header_dict:
-            print 'removing person'
-            name = header_dict['remove_person']
-            remove_success=False
-            if isinstance(name, basestring):
-                resp=transformer.openface_client.removePerson(name)
-                remove_success=json.loads(resp)['val']
-                print 'removing person :{} success: {}'.format(name, remove_success)
-            else:
-                print ('unsupported type for name of a person')
-            resp=self.gen_response(AppDataProtocol.TYPE_remove_person, remove_success)
-            return resp
-
+            return self.handle_remove_person(header_dict)
         if 'get_person' in header_dict:
-            sys.stdout.write('get person\n')
-            sys.stdout.flush()
-            is_get_person = header_dict['get_person']
-            if is_get_person:
-                state_string = transformer.openface_client.getPeople()
-                resp=self.gen_response(AppDataProtocol.TYPE_get_person, state_string)
-                sys.stdout.write('send out response {}\n'.format(resp))
-                sys.stdout.flush()
-                with open('/home/faceswap-admin/openface-state.txt','w') as f:
-                    f.write(state_string)
-            else:
-                sys.stdout.write('error: has get_person in header, but the value is false')
-                resp=self.gen_response(AppDataProtocol.TYPE_get_person, False)
-            return resp
-            
+            return self.handle_get_person(header_dict)
         if 'add_person' in header_dict:
-            print 'adding person'
-            name = header_dict['add_person']
-            if isinstance(name, basestring):
-                transformer.addPerson(name)
-                transformer.training_cnt = 0                
-                print 'training_cnt :{}'.format(transformer.training_cnt)
-            else:
-                raise TypeError('unsupported type for name of a person')
-            resp=self.gen_response(AppDataProtocol.TYPE_add_person, name)
-            return resp
-            
+            return self.handle_add_person(header_dict)
         elif 'face_table' in header_dict:
             face_table_string = header_dict['face_table']
             print face_table_string
             face_table = json.loads(face_table_string)
-            transformer.face_table=face_table
+            self.transformer.face_table=face_table
             for from_person, to_person in face_table.iteritems():
                 print 'mapping:'
                 print '{0} <-- {1}'.format(from_person, to_person)
@@ -215,6 +214,35 @@ class DummyVideoApp(gabriel.proxy.CognitiveProcessThread):
             training=True
             name=header_dict['training']
 
+        # just pixel data
+        np_data=np.fromstring(data, dtype=np.uint8)
+        bgr_img=cv2.imdecode(np_data,cv2.IMREAD_COLOR)
+        rgb_img = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2RGB)        
+            
+        if training:
+            cnt, face_json = self.transformer.train(rgb_img, name)
+            header_dict['type']=AppDataProtocol.TYPE_train
+            header_dict['cnt']=cnt
+            header_dict['faceROI_jsons']=[]            
+            if face_json is not None:
+                header_dict['faceROI_jsons']=[face_json]
+        else:
+            # swap faces
+            snippets = self.transformer.swap_face(rgb_img, bgr_img)
+            header_dict['type']=AppDataProtocol.TYPE_detect
+            header_dict['faceROI_jsons']=snippets
+
+        if Config.DEBUG:
+            end = time.time()
+            print('total processing time: {}'.format((end-start)*1000))
+            self.prev_timestamp = time.time()*1000
+
+        self.transformer.tracking_thread_idle_event.set()
+
+        # TODO: hacky way to wait detector to finish...
+        sleep(0.04)
+        return np_data.tostring()
+            
         # using PIL approach to open a jpeg data
         # image_raw = Image.open(io.BytesIO(data))
         # image = np.asarray(image_raw)
@@ -229,57 +257,6 @@ class DummyVideoApp(gabriel.proxy.CognitiveProcessThread):
         # bgr_img = cv2.imread(fake_file)
         # b,g,r = cv2.split(bgr_img)       # get b,g,r
         # image = cv2.merge([r,g,b])     # switch it to rgb
-
-        # just pixel data
-        np_data=np.fromstring(data, dtype=np.uint8)
-        bgr_img=cv2.imdecode(np_data,cv2.IMREAD_COLOR)
-        rgb_img = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2RGB)        
-            
-        if training:
-            cnt, face_json = transformer.train(rgb_img, name)
-            if face_json is not None:
-                msg = {
-                    'num': 1,
-                    'cnt': cnt,
-                    '0': face_json
-                }
-            else:
-                # time is a random number to avoid token leak
-                msg = {
-                    'num': 0,
-                    'cnt': cnt
-                }
-            msg = json.dumps(msg)                
-            resp= self.gen_response(AppDataProtocol.TYPE_train, msg, frame=np_data)
-        else:
-            # swap faces
-            snippets = self.process(rgb_img, bgr_img)
-            resp= self.gen_response(AppDataProtocol.TYPE_detect, snippets, frame=np_data)
-
-        if Config.DEBUG:
-            end = time.time()
-            print('total processing time: {}'.format((end-start)*1000))
-            prev_timestamp = time.time()*1000
-
-        # push client image onto display queue for flask
-#        sys.stdout.write('before sending out zmq packet\n')
-#        zmq_socket.send(data.tostring())
-#        sys.stdout.write('after sending out zmq packet\n')        
-#        cv2.imwrite('frame.jpg', bgr_img)        
-            
-        transformer.tracking_thread_idle_event.set()
-
-        # pr.disable()
-        # s = StringIO.StringIO()
-        # sortby = 'cumulative'
-        # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-        # ps.print_stats()
-        # print s.getvalue()
-        
-
-        # TODO: hacky way to wait detector to finish...
-        sleep(0.04)
-        return resp
 
 
 if __name__ == "__main__":
@@ -308,7 +285,7 @@ if __name__ == "__main__":
     
     result_queue = multiprocessing.Queue()
     print result_queue._reader
-    dummy_video_app = DummyVideoApp(image_queue, result_queue, engine_id = 'dummy') # dummy app for image processing
+    dummy_video_app = PrivacyMediatorApp(transformer, image_queue, result_queue, engine_id = 'dummy') # dummy app for image processing
     dummy_video_app.start()
     dummy_video_app.isDaemon = True
 
