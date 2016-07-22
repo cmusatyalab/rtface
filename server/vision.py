@@ -22,6 +22,7 @@ def create_dlib_tracker(frame, roi):
                         dlib.rectangle(roi_x1, roi_y1, roi_x2, roi_y2))
     return tracker
 
+@timeit    
 def create_tracker(frame, roi, use_dlib=False):
     if use_dlib:
         tracker = dlib.correlation_tracker()        
@@ -78,13 +79,15 @@ def np_array_to_jpeg_data_url(frame):
 # cv2 helpers    
 def imwrite_rgb(path, frame):
     frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-    sys.stdout.write('writing img to {}'.format(path))
+    sys.stdout.write('writing img to {}\n'.format(path))
     sys.stdout.flush()
     cv2.imwrite(path,frame)
 
-def draw_rois(img,rois):
+def draw_rois(img,rois, hint=None):
     for roi in rois:
-        (x1,y1,x2,y2) = tuple(roi) 
+        (x1,y1,x2,y2) = tuple(roi)
+        if hint:
+            cv2.putText(img, hint, (x1, y1), cv2.FONT_HERSHEY_PLAIN, 1, (255,0,0))
         cv2.rectangle(img, (x1,y1), (x2, y2), (255,0,0))
 
 # face detection
@@ -109,7 +112,7 @@ def filter_small_faces(dets):
             filtered_dets.append(d)
     return filtered_dets
     
-#@timeit
+@timeit
 def detect_faces(frame, detector, largest_only=False, upsample_num_times=0, adjust_threshold=0.0):
     # upsampling will take a lot of time
     # http://dlib.net/face_detector.py.html
@@ -121,10 +124,14 @@ def detect_faces(frame, detector, largest_only=False, upsample_num_times=0, adju
 
     dets=map(lambda d: (int(d.left()), int(d.top()), int(d.right()), int(d.bottom())), dets)
     rois=filter_small_faces(dets)
-    LOG.debug('# detected : {}'.format(len(rois)))        
+    LOG.debug('# face detected : {}'.format(len(rois)))        
     rois=sorted(rois)
     return rois
 
+# merge old facerois with new face rois    
+def merge_faceROIs(old_faceROIs, new_faceROIs):
+    pass
+    
     
 class FaceROI(object):
     def __init__(self, roi, data=None, name=None, tracker=None):
