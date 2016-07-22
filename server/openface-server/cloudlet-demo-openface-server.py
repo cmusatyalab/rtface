@@ -111,7 +111,7 @@ svm = None
 svm_lock = Lock()
 mean_features=None
 # an arbitrary distance threashold for distinguish between one person and unknown
-SINGLE_PERSON_RECOG_THRESHOLD=0.8
+SINGLE_PERSON_RECOG_THRESHOLD=0.5
 # an arbitrary probability for cutting of recognition true/false
 RECOG_PROB_THRESHOLD=0.8
 
@@ -531,7 +531,7 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
                     if mean_features != None:
                         dist=np.linalg.norm(rep-mean_features)
                         if dist < SINGLE_PERSON_RECOG_THRESHOLD:
-                            identity=0
+                            identity=-1
                         print 'dist {} identity {}'.format(dist, identity)
                 elif svm:
                     svm_lock.acquire()

@@ -12,8 +12,25 @@ import dlib
 import vision
 import sys
 
-class camshiftTracker(object):
+class Tracker(object):
     def __init__(self):
+        self.stale = 0
+
+    def get_stale(self):
+        return self.stale
+
+    def inc_stale(self):
+        self.stale+=1
+
+    def dec_stale(self):
+        self.stale-=1
+
+    def clr_stale(self):
+        self.stale=0
+        
+class camshiftTracker(Tracker):
+    def __init__(self):
+        super(self.__class__, self).__init__()
         self.selection = None
         self.hist = None
         self.track_window=None
@@ -34,7 +51,7 @@ class camshiftTracker(object):
     def update(self, frame, is_hsv=False, suggested_roi=None):
         try:
             if not is_hsv:
-                hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+                hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
             else:
                 hsv = frame
             mask = cv2.inRange(hsv, np.array((0., 60., 32.)), np.array((180., 255., 255.)))        
@@ -54,8 +71,9 @@ class camshiftTracker(object):
         ret = dlib.rectangle(roi_x1, roi_y1, roi_x2, roi_y2)
         return ret
 
-class meanshiftTracker(object):
+class meanshiftTracker(Tracker):
     def __init__(self):
+        super(self.__class__, self).__init__()        
         self.selection = None
         self.hist = None
         self.track_window=None
@@ -76,7 +94,7 @@ class meanshiftTracker(object):
     def update(self, frame, is_hsv=False, suggested_roi=None):
         try:
             if not is_hsv:
-                hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+                hsv = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
             else:
                 hsv = frame
             mask = cv2.inRange(hsv, np.array((0., 60., 32.)), np.array((180., 255., 255.)))        

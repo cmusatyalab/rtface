@@ -1,6 +1,5 @@
 #! /usr/bin/env python
-
-# in this file, the input frame is in rgb format
+# in this file, the frames by default are rgb unless state otherwise by the variable name
 
 from MyUtils import *
 from vision import *
@@ -28,6 +27,7 @@ WRITE_PICTURE_DEBUG=Config.WRITE_PICTURE_DEBUG
 if WRITE_PICTURE_DEBUG:
     remove_dir(Config.WRITE_PICTURE_DEBUG_PATH)
     create_dir(Config.WRITE_PICTURE_DEBUG_PATH)
+    track_frame_id=0
 DETECT_TRACK_RATIO = 10
 
 class RecognitionRequestUpdate(object):
@@ -119,12 +119,13 @@ class FaceTransformation(object):
                 continue
             # update detection
             if (self.correct_tracking_event.is_set()):
-                LOG.debug('bg-thread getting detection updates')
                 try:
                     tracker_updates = self.trackers_queue.get(timeout=1)
                     faces = tracker_updates['faces']
+                    LOG.debug('bg-thread received detection # {} faces'.format(len(faces)))           
                     tracker_frame = tracker_updates['frame']
-                    cnt=0
+
+                    self.faces_lock.acquire()        
                     for face in faces:
                         nearest_face = self.find_nearest_face(face, self.faces)
                         if (nearest_face):
@@ -133,12 +134,9 @@ class FaceTransformation(object):
                             face.name=""
                         tracker = create_tracker(tracker_frame, face.roi, use_dlib=Config.DLIB_TRACKING)
                         face.tracker = tracker
-                        cnt+=1
-
-                    LOG.debug('bg-thread received detection # {} faces'.format(cnt))
-                    self.faces_lock.acquire()
                     self.faces = faces
-                    self.faces_lock.release()
+                    self.faces_lock.release()                                            
+                    LOG.debug('bg-thread updated self.faces # {} faces'.format(len(self.faces))) 
                     self.correct_tracking_event.clear()
                 except Queue.Empty:
                     LOG.debug('bg-thread updating faces queue empty!')                    
@@ -150,7 +148,7 @@ class FaceTransformation(object):
                 if (isinstance(update, RecognitionRequestUpdate)):
                     in_fly_recognition_info[update.recognition_frame_id] = update.location
                 else:
-                    LOG.debug('main process received recognition resp {}'.format(update))
+                    LOG.debug('received recognition resp {}'.format(update))
                     recognition_resp = json.loads(update)
                     if (recognition_resp['type'] == FaceRecognitionServerProtocol.TYPE_frame_resp
                         and recognition_resp['success']):
@@ -162,8 +160,6 @@ class FaceTransformation(object):
                             if (nearest_face):
                                 if 'name' in recognition_resp:
                                     nearest_face.name = recognition_resp['name']
-                                    LOG.debug('bg-thread received recognition. name: {}'
-                                             .format(recognition_resp['name']))
                             self.faces_lock.release()
                         else:
                             LOG.error('received response but no frame info about the request')
@@ -252,9 +248,8 @@ class FaceTransformation(object):
             LOG.info('created')
             detector = dlib.get_frontal_face_detector()
             detection_process_openface_client=AsyncOpenFaceClientProcess(call_back=self.on_receive_openface_server_result, queue=recognition_queue, recognition_busy_event=recognition_busy_event)
-
             recognition_frame_id=0
-            frame_id=0
+            detection_frame_id=0
             while (not stop_event.is_set()):
                 # get the last element in the queue
                 try:
@@ -270,9 +265,7 @@ class FaceTransformation(object):
                 except Queue.Empty:
                     pass
                     
-#                LOG.info('detect skipped # {} images'.format(cnt))
-                rois = detect_faces(frame, detector)
-                LOG.debug('detected # {} faces'.format(len(rois)))
+                rois = detect_faces(frame, detector, upsample_num_times=Config.DLIB_DETECTOR_UPSAMPLE_TIMES, adjust_threshold=Config.DLIB_DETECTOR_ADJUST_THRESHOLD)
                 if (len(rois)>0):
                     if (not recognition_busy_event.is_set() ):
                         recognition_busy_event.set()                                            
@@ -281,19 +274,18 @@ class FaceTransformation(object):
                             face_pixels = frame[y1:y2+1, x1:x2+1]
                             face_string = np_array_to_jpeg_data_url(face_pixels)
                             detection_process_openface_client.addFrameWithID(face_string, 'detect', recognition_frame_id)
-                            LOG.debug('send out recognition request')                    
                             roi_center=((x1 + x2)/2, (y1+y2)/2)
                             recognition_queue.put(RecognitionRequestUpdate(recognition_frame_id, roi_center))
                             recognition_frame_id+=1
-                            LOG.debug('after putting updates on queues')
+                            LOG.debug('recognition put in-fly requests on queues')
                     else:
                         LOG.debug('skipped sending recognition')
                         
                 if WRITE_PICTURE_DEBUG:
-                    draw_rois(frame,rois)
-                    imwrite_rgb(self.pic_output_path(str(frame_id)+'_detect'), frame)
+                    draw_rois(frame,rois, hint="detect")
+                    imwrite_rgb(self.pic_output_path(str(detection_frame_id)+'_detect'), frame)
                     
-                frame_id+=1
+                detection_frame_id+=1
                 # meanshift tracker for catching up
                 trackers = create_trackers(frame, rois)
                 frame_available = True
@@ -308,8 +300,8 @@ class FaceTransformation(object):
                         rois=[drectangle_to_tuple(tracker.get_position()) for tracker in trackers]
                         if WRITE_PICTURE_DEBUG:                        
                             draw_rois(frame,rois)
-                            imwrite_rgb(self.pic_output_path(frame_id), frame)
-                        frame_id+=1
+                            imwrite_rgb(self.pic_output_path(detection_frame_id), frame)
+                        detection_frame_id+=1
                         frame_cnt +=1
                     except Queue.Empty:
                         LOG.debug('catched up {} images'.format(frame_cnt))    
@@ -327,6 +319,7 @@ class FaceTransformation(object):
 
                         tracker_updates = {'frame':frame, 'faces':faces}
                         trackers_queue.put(tracker_updates)
+                        LOG.debug('put detection updates onto the queue # {} faces'.format(len(faces)))
                         correct_tracking_event.set()
             # wake thread up for terminating
             correct_tracking_event.set()
@@ -334,12 +327,15 @@ class FaceTransformation(object):
             traceback.print_exc()
             raise e
             
-    def track_faces(self, frame, faces):
+    def track_faces(self, rgb_img, faces):
         LOG.debug('# faces tracking {} '.format(len(faces)))
         to_be_removed_face = []
+        
         # cvtColor is an expensive operation
-        # only convert frame to hsv frame once for meanshift or camshift?
-#        hsv_frame = cv2.cvtColor(frame, cv2.COLOR_RGB2HSV)
+        # only convert frame to hsv frame once for meanshift or camshift
+        if not Config.DLIB_TRACKING:
+            hsv_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2HSV)
+            
         if (len(faces) == 0):
             # sleep for 10 ms
             time.sleep(0.005)
@@ -349,8 +345,11 @@ class FaceTransformation(object):
                 if Config.DEBUG:
                     start = time.time()
                 (x1,y1,x2,y2)=face.roi
-#                tracker.update(hsv_frame, is_hsv=True)
-                tracker.update(frame)
+                if isinstance(tracker, meanshiftTracker) or isinstance(tracker, camshiftTracker):
+                    tracker.update(hsv_img, is_hsv=True)
+                else:
+                    tracker.update(rgb_img)
+                    
                 new_roi = tracker.get_position()
 
                 if Config.DEBUG:
@@ -365,7 +364,7 @@ class FaceTransformation(object):
                 if (is_small_face(face.roi)):
                     to_be_removed_face.append(face)
                 else:
-                    face.data = np.copy(frame[y1:y2+1, x1:x2+1])
+                    face.data = np.copy(rgb_img[y1:y2+1, x1:x2+1])
                 faces = [face for face in faces if face not in to_be_removed_face]
         return faces
         
@@ -381,13 +380,12 @@ class FaceTransformation(object):
             self.training=False
             self.openface_client.setTraining(False)
 
-        self.image_width=rgb_img.shape[1]
-#        LOG.info('received image. width: {}'.format(self.image_width))
+        height, self.image_width, _=rgb_img.shape
+        LOG.debug('received image. {}x{}'.format(self.image_width, height))
 
         # track existing faces
-        faces=self.track_faces(rgb_img, self.faces)
-        self.faces_lock.acquire()                    
-        self.faces=faces
+        self.faces_lock.acquire()                            
+        self.faces=self.track_faces(rgb_img, self.faces)
         self.faces_lock.release()        
         
         face_snippets = []
@@ -406,7 +404,6 @@ class FaceTransformation(object):
         profile_faces=FaceDetection.detect_profile_faces(bgr_img, flip=True)
         for (x1,y1,x2,y2) in profile_faces:
             LOG.debug('detect profile faces: {} {} {} {}'.format(x1,y1,x2,y2))
-#            (x1, y1, x2, y2) = enlarge_roi( (x1,y1,x2,y2), padding, width, height)
             profile_face=FaceROI( (int(x1), int(y1), int(x2), int(y2)), name='profile_face')
             try:
                 profile_face_json = profile_face.get_json(send_data=False)
@@ -414,12 +411,24 @@ class FaceTransformation(object):
             except ValueError:
                 pass
             face_snippets.append(profile_face_json)
-#            blur=cv2.blur(bgr_frame[y1:y2+1, x1:x2+1], (int((x2-x1)/2.0), int((y2-y1)/2.0)) )
-#            cv2.rectangle(bgr_frame, (x1,y1), (x2, y2), (255,0,0), 5)
-#            bgr_frame[y1:y2+1, x1:x2+1]=blur
 
         self.img_queue.put(rgb_img)                
         LOG.debug('# faces returned: {}'.format(len(self.faces)))
+
+        if WRITE_PICTURE_DEBUG:
+            rois=[]
+            for faceROI_json in face_snippets:
+                faceROI_dict = json.loads(faceROI_json)
+                x1 = faceROI_dict['roi_x1']
+                y1 = faceROI_dict['roi_y1']
+                x2 = faceROI_dict['roi_x2']
+                y2 = faceROI_dict['roi_y2']
+                rois.append( (x1,y1,x2,y2) )
+            draw_rois(rgb_img,rois)
+            global track_frame_id
+            imwrite_rgb(self.pic_output_path(str(track_frame_id)+'_track'), rgb_img)
+            track_frame_id+=1
+        
         return face_snippets
 
     def addPerson(self, name):
