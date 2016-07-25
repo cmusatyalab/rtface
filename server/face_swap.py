@@ -33,6 +33,7 @@ DETECT_TRACK_RATIO = 10
 PROFILE_FACE = 'profile_face'
 # use a moving average here?
 TRACKER_CONFIDENCE_THRESHOLD=5
+IMAGE_CLEAR_THRESHOLD=65
 
 class RecognitionRequestUpdate(object):
     def __init__(self, recognition_frame_id, location):
@@ -56,10 +57,9 @@ class FaceTransformation(object):
         ch.setFormatter(formatter)
         LOG.addHandler(ch)
         
-        self.cnt=0
         self.detector = dlib.get_frontal_face_detector()
+        self.need_detection=False
         self.faces=[]
-        self.face_table = {}
         
         self.faces_lock=threading.Lock()
         self.img_queue = multiprocessing.Queue()
@@ -429,11 +429,16 @@ class FaceTransformation(object):
             except ValueError:
                 pass
 
-        # if Config.DETECT_PROFILE_FACE:
-        #     self.add_profile_faces_blur(bgr_img, face_snippets)
-
         if self.frame_id % 10 == 0 or tracker_fail:
-            self.img_queue.put(rgb_img)
+            self.need_detection=True
+
+        if self.need_detection:
+            # make sure blurry images is not sent for detection
+            if is_clear(bgr_img, threshold=IMAGE_CLEAR_THRESHOLD):
+                self.need_detection=False
+                self.img_queue.put(rgb_img)
+            else:
+                LOG.debug('image {} too blurry. not running detection'.format(self.frame_id))
             
         LOG.debug('# faces returned: {}'.format(len(self.faces)))
 
@@ -491,5 +496,4 @@ class FaceTransformation(object):
         if success:
             self.training_cnt +=1
 
-        LOG.info("training-finished adding frame")                        
         return self.training_cnt, face.get_json()
