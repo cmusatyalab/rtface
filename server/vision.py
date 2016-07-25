@@ -177,6 +177,24 @@ def detect_profile_faces(img, flip):
 def merge_faceROIs(old_faceROIs, new_faceROIs):
     pass
     
+
+# the lower the number is, the higher of blurness    
+def variance_of_laplacian(bgr_img):
+    # compute the Laplacian of the image and then return the focus
+    # measure, which is simply the variance of the Laplacian
+    if len(bgr_img.shape) == 3:
+        grey_img=cv2.cvtColor(bgr_img, cv2.COLOR_BGR2GRAY)
+    else:
+        grey_img=bgr_img
+    return cv2.Laplacian(grey_img, cv2.CV_64F).var()
+    
+# detect if an image is blurry
+# a higher threshold, meaning a higher demand for image being clearer
+def is_clear(bgr_img, threshold=40):
+    if variance_of_laplacian(bgr_img) < threshold:
+        return False
+    return True
+    
     
 class FaceROI(object):
     def __init__(self, roi, data=None, name=None, tracker=None):
