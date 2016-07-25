@@ -92,7 +92,6 @@ class meanshiftTracker(Tracker):
         self.hist = cv2.calcHist( [hsv_roi], [0], mask_roi, [16], [0, 180] )
         cv2.normalize(self.hist, self.hist, 0, 255, cv2.NORM_MINMAX)
         self.hist = self.hist.reshape(-1)
-        print('hist: {}'.format(self.hist))
         
     def update(self, frame, is_hsv=False, suggested_roi=None):
         try:

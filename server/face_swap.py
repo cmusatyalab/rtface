@@ -28,7 +28,9 @@ if WRITE_PICTURE_DEBUG:
     remove_dir(Config.WRITE_PICTURE_DEBUG_PATH)
     create_dir(Config.WRITE_PICTURE_DEBUG_PATH)
     track_frame_id=0
+    
 DETECT_TRACK_RATIO = 10
+PROFILE_FACE = 'profile_face'
 
 class RecognitionRequestUpdate(object):
     def __init__(self, recognition_frame_id, location):
@@ -107,6 +109,8 @@ class FaceTransformation(object):
         self.detection_process.start()
         self.image_width=Config.MAX_IMAGE_WIDTH
 
+        self.frame_id=0
+        
     # background thread that updates self.faces once
     # detection process signaled
     def correct_tracking(self, stop_event=None):
@@ -184,6 +188,10 @@ class FaceTransformation(object):
         distances = []
         # find the closest face object
         for face in nearby_faces:
+            # doesn't match profile faces
+            if face.name == PROFILE_FACE:
+                continue
+                
             face_center = face.get_location()
             if (isinstance(src, FaceROI)):
                 src_center = src.get_location()
@@ -280,6 +288,11 @@ class FaceTransformation(object):
                             LOG.debug('recognition put in-fly requests on queues')
                     else:
                         LOG.debug('skipped sending recognition')
+
+                profile_face_rois=detect_profile_faces(frame, flip=True)
+                profile_face_start_idx=len(rois)
+                LOG.debug('frontal face roi: {} profile face roi:{}'.format(rois, profile_face_rois))
+                rois.extend(profile_face_rois)
                         
                 if WRITE_PICTURE_DEBUG:
                     draw_rois(frame,rois, hint="detect")
@@ -313,7 +326,10 @@ class FaceTransformation(object):
                                              int(new_roi.top()),
                                              int(new_roi.right()),
                                              int(new_roi.bottom()))
-                            name = ""
+                            if idx < profile_face_start_idx:
+                                name = ""
+                            else:
+                                name = PROFILE_FACE
                             face = FaceROI(cur_roi, name=name)
                             faces.append(face)
 
@@ -326,7 +342,7 @@ class FaceTransformation(object):
         except Exception as e:
             traceback.print_exc()
             raise e
-            
+
     def track_faces(self, rgb_img, faces):
         LOG.debug('# faces tracking {} '.format(len(faces)))
         to_be_removed_face = []
@@ -348,7 +364,7 @@ class FaceTransformation(object):
                 if isinstance(tracker, meanshiftTracker) or isinstance(tracker, camshiftTracker):
                     tracker.update(hsv_img, is_hsv=True)
                 else:
-                    tracker.update(rgb_img)
+                    tracker.update(rgb_img, tracker.get_position())
                     
                 new_roi = tracker.get_position()
 
@@ -363,10 +379,19 @@ class FaceTransformation(object):
                 face.roi = (x1,y1,x2,y2)
                 if (is_small_face(face.roi)):
                     to_be_removed_face.append(face)
-                else:
-                    face.data = np.copy(rgb_img[y1:y2+1, x1:x2+1])
                 faces = [face for face in faces if face not in to_be_removed_face]
         return faces
+
+    def add_profile_faces_blur(self, bgr_img, blur_list):
+        profile_faces=detect_profile_faces(bgr_img, flip=True)
+        for (x1,y1,x2,y2) in profile_faces:
+            LOG.debug('detect profile faces: {} {} {} {}'.format(x1,y1,x2,y2))
+            profile_face=FaceROI( (int(x1), int(y1), int(x2), int(y2)), name='profile_face')
+            try:
+                profile_face_json = profile_face.get_json(send_data=False)
+                blur_list.append(profile_face_json)
+            except ValueError:
+                pass
         
     def swap_face(self,rgb_img, bgr_img=None):
 #        im = Image.fromarray(frame)
@@ -396,23 +421,12 @@ class FaceTransformation(object):
             except ValueError:
                 pass
 
-        # privacy mediator
-        # detect profile faces
-        height, width, _ = bgr_img.shape
-        padding=10
-        # test add in profile face detector
-        profile_faces=FaceDetection.detect_profile_faces(bgr_img, flip=True)
-        for (x1,y1,x2,y2) in profile_faces:
-            LOG.debug('detect profile faces: {} {} {} {}'.format(x1,y1,x2,y2))
-            profile_face=FaceROI( (int(x1), int(y1), int(x2), int(y2)), name='profile_face')
-            try:
-                profile_face_json = profile_face.get_json(send_data=False)
-                face_snippets.append(profile_face_json)
-            except ValueError:
-                pass
-            face_snippets.append(profile_face_json)
+        # if Config.DETECT_PROFILE_FACE:
+        #     self.add_profile_faces_blur(bgr_img, face_snippets)
 
-        self.img_queue.put(rgb_img)                
+        if self.frame_id % 10 == 0:
+            self.img_queue.put(rgb_img)
+            
         LOG.debug('# faces returned: {}'.format(len(self.faces)))
 
         if WRITE_PICTURE_DEBUG:
@@ -425,9 +439,9 @@ class FaceTransformation(object):
                 y2 = faceROI_dict['roi_y2']
                 rois.append( (x1,y1,x2,y2) )
             draw_rois(rgb_img,rois)
-            global track_frame_id
-            imwrite_rgb(self.pic_output_path(str(track_frame_id)+'_track'), rgb_img)
-            track_frame_id+=1
+            imwrite_rgb(self.pic_output_path(str(self.frame_id)+'_track'), rgb_img)
+
+        self.frame_id +=1
         
         return face_snippets
 
