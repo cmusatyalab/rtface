@@ -31,6 +31,8 @@ if WRITE_PICTURE_DEBUG:
     
 DETECT_TRACK_RATIO = 10
 PROFILE_FACE = 'profile_face'
+# use a moving average here?
+TRACKER_CONFIDENCE_THRESHOLD=5
 
 class RecognitionRequestUpdate(object):
     def __init__(self, recognition_frame_id, location):
@@ -346,6 +348,7 @@ class FaceTransformation(object):
     def track_faces(self, rgb_img, faces):
         LOG.debug('# faces tracking {} '.format(len(faces)))
         to_be_removed_face = []
+        is_low_confidence=False
         
         # cvtColor is an expensive operation
         # only convert frame to hsv frame once for meanshift or camshift
@@ -364,7 +367,12 @@ class FaceTransformation(object):
                 if isinstance(tracker, meanshiftTracker) or isinstance(tracker, camshiftTracker):
                     tracker.update(hsv_img, is_hsv=True)
                 else:
-                    tracker.update(rgb_img, tracker.get_position())
+                    # dlib
+                    guess = tracker.get_position()
+                    conf=tracker.update(rgb_img, tracker.get_position())
+                    if face.name != PROFILE_FACE and conf < TRACKER_CONFIDENCE_THRESHOLD:
+                        LOG.debug('frontal tracker conf too low {}'.format(conf))     
+                        is_low_confidence=True
                     
                 new_roi = tracker.get_position()
 
@@ -380,7 +388,7 @@ class FaceTransformation(object):
                 if (is_small_face(face.roi)):
                     to_be_removed_face.append(face)
                 faces = [face for face in faces if face not in to_be_removed_face]
-        return faces
+        return faces, is_low_confidence
 
     def add_profile_faces_blur(self, bgr_img, blur_list):
         profile_faces=detect_profile_faces(bgr_img, flip=True)
@@ -410,7 +418,7 @@ class FaceTransformation(object):
 
         # track existing faces
         self.faces_lock.acquire()                            
-        self.faces=self.track_faces(rgb_img, self.faces)
+        self.faces, tracker_fail =self.track_faces(rgb_img, self.faces)
         self.faces_lock.release()        
         
         face_snippets = []
@@ -424,7 +432,7 @@ class FaceTransformation(object):
         # if Config.DETECT_PROFILE_FACE:
         #     self.add_profile_faces_blur(bgr_img, face_snippets)
 
-        if self.frame_id % 10 == 0:
+        if self.frame_id % 10 == 0 or tracker_fail:
             self.img_queue.put(rgb_img)
             
         LOG.debug('# faces returned: {}'.format(len(self.faces)))
