@@ -1,4 +1,4 @@
-package edu.cmu.cs.faceswap;
+package edu.cmu.cs.privacy_mediator;
 
 import android.app.Activity;
 import android.content.SharedPreferences;

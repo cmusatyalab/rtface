@@ -26,7 +26,7 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
 
-import edu.cmu.cs.faceswap.R;
+import edu.cmu.cs.privacy_mediator.R;
 import filepickerlibrary.enums.Scope;
 
 /**

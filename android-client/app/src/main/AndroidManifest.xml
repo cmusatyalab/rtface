@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="edu.cmu.cs.faceswap"
+    package="edu.cmu.cs.privacy_mediator"
     android:versionCode="3"
     android:versionName="1.2">
 
@@ -24,7 +24,7 @@
         android:largeHeap="true"
         android:theme="@style/MyGabrielMaterialTheme">
         <activity
-            android:name="edu.cmu.cs.faceswap.CloudletDemoActivity"
+            android:name="edu.cmu.cs.privacy_mediator.PrivacyMediatorActivity"
             android:label="@string/title_activity_cloudlet_demo"
             android:screenOrientation="portrait"
             android:theme="@style/MyGabrielMaterialTheme">
@@ -46,10 +46,10 @@
             android:label="@string/title_activity_main"
             android:screenOrientation="landscape" />
 
-        <activity android:name="edu.cmu.cs.faceswap.SettingActivity"></activity>
-        <activity android:name="edu.cmu.cs.faceswap.IPSettingActivity"
+        <activity android:name="edu.cmu.cs.privacy_mediator.SettingActivity"></activity>
+        <activity android:name="edu.cmu.cs.privacy_mediator.IPSettingActivity"
             android:theme="@style/MyGabrielMaterialTheme"
-            android:parentActivityName="edu.cmu.cs.faceswap.CloudletDemoActivity">
+            android:parentActivityName="edu.cmu.cs.privacy_mediator.PrivacyMediatorActivity">
         </activity>
     </application>
 

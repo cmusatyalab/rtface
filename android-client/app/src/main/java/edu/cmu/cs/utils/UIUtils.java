@@ -14,7 +14,7 @@ import java.io.FileReader;
 import java.io.IOException;
 
 import edu.cmu.cs.gabriel.Const;
-import edu.cmu.cs.faceswap.R;
+import edu.cmu.cs.privacy_mediator.R;
 import filepickerlibrary.FilePickerActivity;
 import filepickerlibrary.enums.Request;
 import filepickerlibrary.enums.Scope;

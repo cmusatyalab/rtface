@@ -1,6 +1,6 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:context="edu.cmu.cs.faceswap.CloudletDemoActivity">
+    tools:context="edu.cmu.cs.privacy_mediator.PrivacyMediatorActivity">
 
     <item android:id="@+id/manage_servers" android:title="@string/manage_servers_text"
         android:orderInCategory="100"
