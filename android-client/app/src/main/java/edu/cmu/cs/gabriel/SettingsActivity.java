@@ -1,6 +1,6 @@
 package edu.cmu.cs.gabriel;
 
-import edu.cmu.cs.faceswap.R;
+import edu.cmu.cs.privacy_mediator.R;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.os.Bundle;

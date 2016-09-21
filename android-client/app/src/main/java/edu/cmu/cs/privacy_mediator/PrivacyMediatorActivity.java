@@ -1,4 +1,4 @@
-package edu.cmu.cs.faceswap;
+package edu.cmu.cs.privacy_mediator;
 
 import android.Manifest;
 import android.app.Activity;
@@ -57,7 +57,7 @@ import static edu.cmu.cs.utils.NetworkUtils.checkOnline;
 import static edu.cmu.cs.utils.NetworkUtils.isOnline;
 import static edu.cmu.cs.utils.UIUtils.prepareForResultIntentForFilePickerActivity;
 
-public class CloudletDemoActivity extends AppCompatActivity implements
+public class PrivacyMediatorActivity extends AppCompatActivity implements
         GabrielConfigurationAsyncTask.AsyncResponse, GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener {
 
@@ -248,25 +248,8 @@ public class CloudletDemoActivity extends AppCompatActivity implements
                 asyncResponseExtra = extra;
                 actionSaveStateFileToGoogleDrive();
             }
-        } else if (action.equals(Const.GABRIEL_CONFIGURATION_GET_PERSON)){
-            Log.d(TAG, "download person finished. success? " + success);
-            if (success){
-                asyncResponseExtra=extra;
-                String peopleString=new String(asyncResponseExtra);
-                Log.i(TAG, "people : " + new String(asyncResponseExtra));
-                //remove bracket
-                String peopleStringNoBracket=peopleString.substring(1,peopleString.length()-1);
-                childFragment.clearPersonTable();
-                if (!peopleStringNoBracket.isEmpty()){
-                    String[] people=peopleStringNoBracket.split(",");
-                    childFragment.populatePersonTable(people);
-                }
-            } else {
-                //clear UI
-                childFragment.clearPersonTable();
-            }
         }
-}
+    }
 
     public void actionUploadStateByteArray(byte[] stateData){
         if (stateData!=null){
@@ -440,7 +423,7 @@ public class CloudletDemoActivity extends AppCompatActivity implements
                             GabrielClientActivity.VIDEO_STREAM_PORT,
                             GabrielClientActivity.RESULT_RECEIVING_PORT,
                             Const.GABRIEL_CONFIGURATION_SYNC_STATE,
-                            (CloudletDemoActivity)mActivity);
+                            (PrivacyMediatorActivity)mActivity);
             task.execute(copyFromIp);
             return;
         }

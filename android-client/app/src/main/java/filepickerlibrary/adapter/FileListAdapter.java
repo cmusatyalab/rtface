@@ -42,7 +42,7 @@ import java.util.Calendar;
 import java.util.List;
 
 import filepickerlibrary.enums.Scope;
-import edu.cmu.cs.faceswap.R;
+import edu.cmu.cs.privacy_mediator.R;
 /**
  * Created by Paul Tsouchlos
  */

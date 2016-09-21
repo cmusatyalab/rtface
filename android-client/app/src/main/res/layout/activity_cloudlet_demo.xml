@@ -19,7 +19,7 @@
 
     <fragment
         android:id="@+id/demofragment"
-        android:name="edu.cmu.cs.faceswap.CloudletFragment"
+        android:name="edu.cmu.cs.privacy_mediator.CloudletFragment"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"

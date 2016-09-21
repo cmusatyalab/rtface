@@ -55,7 +55,7 @@ import java.text.SimpleDateFormat;
 import java.util.GregorianCalendar;
 
 import edu.cmu.cs.utils.EditTextAlertDialog;
-import edu.cmu.cs.faceswap.R;
+import edu.cmu.cs.privacy_mediator.R;
 import filepickerlibrary.adapter.FileListAdapter;
 import filepickerlibrary.enums.MimeType;
 import filepickerlibrary.enums.Request;

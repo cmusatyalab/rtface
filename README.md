@@ -1,20 +1,10 @@
 # Privacy Mediator
 
----
-
----
-
 ## Overview ##
+Privacy Mediator is leverage the emerging cloudlet infrastructure to protect leaks of sensitive information from IoT devices.
 
-## Installation Guide ##
-+ Install openblas, lapack before install any following dependencies to make the code faster:
-
-          sudo apt-get install libopenblas-dev liblapack-dev          
-
-+ Install numpy, scipy from pip to make sure they are using the correct blas and lapack libaries. Use numpy.show_config() to check openblas are used. See [StackOverflow question](http://stackoverflow.com/questions/21671040/link-atlas-mkl-to-an-installed-numpy/21673585#21673585) and this [blog](http://gromgull.net/blog/2013/07/multithreaded-scipynumpy-with-openblas-on-debian/) for numbers using different blas libraries
-
-          sudo pip install numpy scipy
-
+## Privacy Mediator Server Setup ##
+### Dependency ###
 
 + Compile and install dlib and opencv from source
   + for dlib
@@ -37,9 +27,6 @@
 
 ### Usage ###
 To start server, run server/start_demo.sh
-
-## Licensing ##
-Unless otherwise stated, the source code are copyright Carnegie Mellon University and licensed under the Apache 2.0 License.
 
 ## Author ##
 Junjue Wang: junjuew at cs dot cmu dot edu
