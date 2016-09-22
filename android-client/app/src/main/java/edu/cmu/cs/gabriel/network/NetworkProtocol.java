@@ -7,12 +7,16 @@ public class NetworkProtocol {
 	public static final int NETWORK_RET_CONFIG = 3;
 	public static final int NETWORK_RET_TOKEN = 4;
 	public static final int NETWORK_MEASUREMENT = 4;
-	
+
 	public static final String HEADER_MESSAGE_CONTROL = "control";
-	public static final String HEADER_MESSAGE_RESULT = "result";
+	public static final String HEADER_MESSAGE_STATUS = "status";
 	public static final String HEADER_MESSAGE_INJECT_TOKEN = "token_inject";
-	public static final String HEADER_MESSAGE_FRAME_ID = "id";
+	public static final String HEADER_MESSAGE_FRAME_ID = "frame_id";
 	public static final String HEADER_MESSAGE_ENGINE_ID = "engine_id";
+	public static final String HEADER_MESSAGE_DATA_SIZE = "data_size";
+	public static final String HEADER_MESSAGE_IMAGE = "image";
+	public static final String HEADER_MESSAGE_ANIMATION = "animation";
+	public static final String HEADER_MESSAGE_SPEECH = "speech";
 
 	public static final String CUSTOM_DATA_MESSAGE_TYPE = "type";
 	//response packet data type
@@ -24,8 +28,6 @@ public class NetworkProtocol {
 	public static final String CUSTOM_DATA_MESSAGE_TYPE_IMG = "image";
 	public static final String CUSTOM_DATA_MESSAGE_VALUE= "value";
 	public static final String CUSTOM_DATA_MESSAGE_TYPE_PERSON= "people";
-
-
 
 	public static final String CUSTOM_DATA_MESSAGE_NUM = "num";
 	public static final String CUSTOM_DATA_MESSAGE_ROI_TEMPLATE_X1 = "item_%_roi_x1";
@@ -41,5 +43,8 @@ public class NetworkProtocol {
 	public static final String CUSTOM_DATA_MESSAGE_NAME = "name";
 	public static final String CUSTOM_DATA_MESSAGE_IMG = "data";
 
+	//training
+	public static final String CUSTOM_DATA_MESSAGE_TRAIN_CNT= "cnt";
+	public static final String CUSTOM_DATA_MESSAGE_FACE_ROIS= "faceROI_jsons";
 
 }
