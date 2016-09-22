@@ -21,7 +21,6 @@ import traceback
 from NetworkProtocol import *
 from openfaceClient import OpenFaceClient, AsyncOpenFaceClientProcess
 from demo_config import Config
-import FaceDetection
 
 WRITE_PICTURE_DEBUG=Config.WRITE_PICTURE_DEBUG
 if WRITE_PICTURE_DEBUG:
@@ -33,7 +32,6 @@ DETECT_TRACK_RATIO = 10
 PROFILE_FACE = 'profile_face'
 # use a moving average here?
 TRACKER_CONFIDENCE_THRESHOLD=5
-IMAGE_CLEAR_THRESHOLD=65
 
 class RecognitionRequestUpdate(object):
     def __init__(self, recognition_frame_id, location):
@@ -406,7 +404,7 @@ class FaceTransformation(object):
 #        im.save('/home/faceswap-admin/privacy-mediator/image/frame.jpg')
 
         if bgr_img == None:
-            bgr_img = cv2.cvtColor(bgr_img, cv2.COLOR_RGB2BGR)
+            bgr_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2BGR)
             
         if self.training:
             LOG.debug('main-process stopped openface training!')            
@@ -434,7 +432,7 @@ class FaceTransformation(object):
 
         if self.need_detection:
             # make sure blurry images is not sent for detection
-            if is_clear(bgr_img, threshold=IMAGE_CLEAR_THRESHOLD):
+            if is_clear(bgr_img, threshold=Config.IMAGE_CLEAR_THRESHOLD):
                 self.need_detection=False
                 self.img_queue.put(rgb_img)
             else:
