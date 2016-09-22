@@ -29,6 +29,7 @@ import android.os.Message;
 import android.preference.PreferenceManager;
 import android.util.Base64;
 import android.util.Log;
+import android.util.Pair;
 import android.util.TypedValue;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -38,6 +39,7 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.opencv.android.BaseLoaderCallback;
@@ -437,16 +439,12 @@ public class GabrielClientActivity extends Activity implements CVRenderer.CVPrev
 			//handled by resultReceivingThread!!!
 			//is measuring time different between two adjcent packet right now?
 			if (msg.what == NetworkProtocol.NETWORK_RET_RESULT) {
-				String response = (String) msg.obj;
-//				double prevTimeStamp=timeStamp;
-//				timeStamp=System.currentTimeMillis();
 				double latency=System.currentTimeMillis()-timeStamp;
 				packtCnt++;
                 Log.d(LOG_TAG, "latency for above packet " + latency);
 				totalDelay+=latency;
 				if (packtCnt % 10 ==0){
 					double avgLatency=totalDelay/10;
-//					double fps=(double)packtCnt/((System.currentTimeMillis()-packetFirstUpdateTime)/1000);
 					double fps=10.0/((System.currentTimeMillis()-packetLastUpdateTime)/1000);
 					packetLastUpdateTime=System.currentTimeMillis();
 					String info=String.format("Latency: %.2f ms, FPS: %.2f",avgLatency,fps);
@@ -454,7 +452,38 @@ public class GabrielClientActivity extends Activity implements CVRenderer.CVPrev
 					auxView.setText(info);
 				}
 
+				if (Const.RESPONSE_PAIR){
+					Pair<JSONObject, byte[]> pair= (Pair<JSONObject, byte[]>) msg.obj;
+					JSONObject header=pair.first;
+					byte[] data = pair.second;
+
+					//handle only training right now
+					try {
+                        String type = header.getString(NetworkProtocol.CUSTOM_DATA_MESSAGE_TYPE);
+                        if (type.equals(NetworkProtocol.CUSTOM_DATA_MESSAGE_TYPE_ADD_PERSON)) {
+                            String name = header.getString(NetworkProtocol.CUSTOM_DATA_MESSAGE_VALUE);
+                            Log.d(LOG_TAG, "gabriel server added person: " + name);
+                        }
+
+						if (type.equals(NetworkProtocol.CUSTOM_DATA_MESSAGE_TYPE_TRAIN)) {
+							int cnt = header.getInt(NetworkProtocol.CUSTOM_DATA_MESSAGE_TRAIN_CNT);
+							JSONArray faceRoi_json = header.getJSONArray(
+									NetworkProtocol.CUSTOM_DATA_MESSAGE_FACE_ROIS);
+							System.out.println(faceRoi_json.get(0));
+							Face[] faces = new Face[]{parseFace(faceRoi_json.get(0).toString())};
+							CVRenderDrawFaceSnippets(faces);
+							auxView.setText(String.valueOf(cnt));
+						}
+
+					} catch (JSONException e) {
+						e.printStackTrace();
+					}
+				}
+
+				//old compatibility code with obsolete gabriel
+				//TODO: clean up
 				if (Const.RESPONSE_JSON) {
+					String response = (String) msg.obj;
 					try {
 						JSONObject obj;
 						obj = new JSONObject(response);
@@ -504,6 +533,7 @@ public class GabrielClientActivity extends Activity implements CVRenderer.CVPrev
 				}
 
 				if (Const.RESPONSE_ROI_FACE_SNIPPET) {
+					String response = (String) msg.obj;
 					Face[] faces = parseFaceSnippets(response);
 					// if not destroyed
 					if (cameraOverlay != null && mPreview != null) {
@@ -514,22 +544,12 @@ public class GabrielClientActivity extends Activity implements CVRenderer.CVPrev
 
 
 				if (Const.RESPONSE_ENCODED_IMG) {
+					String response = (String) msg.obj;
 					byte[] img = Base64.decode(response, Base64.DEFAULT);
 					if (mDisplay != null) {
 						mDisplay.push(img);
 					}
 				}
-
-
-//				if (mTTS != null){
-//					String ttsMessage = (String) msg.obj;
-//
-//					// Select a random hello.
-//					Log.d(LOG_TAG, "tts string origin: " + ttsMessage);
-//					mTTS.setSpeechRate(1f);
-//					mTTS.speak(ttsMessage, TextToSpeech.QUEUE_FLUSH, null);
-//				}
-
 			}
 		}
 	};

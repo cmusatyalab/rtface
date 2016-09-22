@@ -27,6 +27,7 @@ import android.graphics.Rect;
 import android.graphics.YuvImage;
 import android.hardware.Camera.Parameters;
 import android.hardware.Camera.Size;
+import android.net.Network;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
@@ -205,7 +206,7 @@ public class VideoStreamingThread extends Thread {
 
                 JSONObject headerJson = new JSONObject();
                 try{
-                    headerJson.put("id", sendingFrameID);
+                    headerJson.put(NetworkProtocol.HEADER_MESSAGE_FRAME_ID, sendingFrameID);
 					if (!hasInitliazed){
 						headerJson.put("add_person", this.name);
 						hasInitliazed=true;
@@ -220,8 +221,8 @@ public class VideoStreamingThread extends Thread {
 
                 header = headerJson.toString().getBytes();
 				dos.writeInt(header.length);
-				dos.writeInt(data.length);
 				dos.write(header);
+				dos.writeInt(data.length);
 				dos.write(data);
 
                 time = System.currentTimeMillis();

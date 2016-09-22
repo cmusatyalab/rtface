@@ -26,6 +26,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.util.Log;
+import android.util.Pair;
 
 public class ResultReceivingThread extends Thread {
 	
@@ -96,52 +97,52 @@ public class ResultReceivingThread extends Thread {
 	}
 
 	private String receiveMsg(DataInputStream reader) throws IOException {
-		int retLength = reader.readInt();
-		byte[] recvByte = new byte[retLength];
-		int readSize = 0;
-		while(readSize < retLength){
-			int ret = reader.read(recvByte, readSize, retLength-readSize);
-			if(ret <= 0){
-				break;
-			}
-			readSize += ret;
-		}
-		String receivedString = new String(recvByte);
+        int retLength = reader.readInt();
+        byte[] recvByte=receiveNBytes(reader, retLength);
+        String receivedString = new String(recvByte);
 		return receivedString;
 	}
-	
+
+    private byte[] receiveNBytes(DataInputStream reader, int retLength) throws IOException {
+        byte[] recvByte = new byte[retLength];
+        int readSize = 0;
+        while(readSize < retLength){
+            int ret = reader.read(recvByte, readSize, retLength-readSize);
+            if(ret <= 0){
+                break;
+            }
+            readSize += ret;
+        }
+        return recvByte;
+    }
 
 	private void notifyReceivedData(String recvData) throws JSONException {	
 		// convert the message to JSON
-		JSONObject obj;
-		String returnMsg = null;
-		int injectedToken = 0;
+		int dataSize = -1;
 		String engineID = "";
 		long frameID = -1;
-		obj = new JSONObject(recvData);
-		
-		try{
-			returnMsg = obj.getString(NetworkProtocol.HEADER_MESSAGE_RESULT);
-		} catch(JSONException e){}
-		try{
-			injectedToken = obj.getInt(NetworkProtocol.HEADER_MESSAGE_INJECT_TOKEN);
-		} catch(JSONException e){}
-		try{
-			frameID = obj.getLong(NetworkProtocol.HEADER_MESSAGE_FRAME_ID);
-			Log.d(LOG_TAG, "received response. frameID: "+frameID);
-			engineID = obj.getString(NetworkProtocol.HEADER_MESSAGE_ENGINE_ID);
-		} catch(JSONException e){}
-		
-		// DO NOT run TTS at experiment
-		if (Const.IS_EXPERIMENT != true){
-			if (returnMsg != null){
-				Message msg = Message.obtain();
-				msg.what = NetworkProtocol.NETWORK_RET_RESULT;
-				msg.obj = returnMsg;
-				this.returnMsgHandler.sendMessage(msg);
-			}
-		}
+		JSONObject header = new JSONObject(recvData);
 
+		try{
+			dataSize = header.getInt(NetworkProtocol.HEADER_MESSAGE_DATA_SIZE);
+            byte[] data = receiveNBytes(networkReader, dataSize);
+
+            Message msg = Message.obtain();
+            msg.what = NetworkProtocol.NETWORK_RET_RESULT;
+            msg.obj= new Pair<JSONObject, byte[]>(header, data);
+            this.returnMsgHandler.sendMessage(msg);
+		} catch(JSONException e){
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        try{
+			frameID = header.getLong(NetworkProtocol.HEADER_MESSAGE_FRAME_ID);
+			Log.d(LOG_TAG, "received response. frameID: "+frameID);
+			engineID = header.getString(NetworkProtocol.HEADER_MESSAGE_ENGINE_ID);
+		} catch(JSONException e){}
+		
 		if (frameID != -1){
 			Message msg = Message.obtain();
 			msg.what = NetworkProtocol.NETWORK_RET_TOKEN;
@@ -150,10 +151,6 @@ public class ResultReceivingThread extends Thread {
 			data.putString(NetworkProtocol.HEADER_MESSAGE_ENGINE_ID, engineID);
 			msg.setData(data);
 			this.tokenController.tokenHandler.sendMessage(msg);
-		}
-		if (injectedToken > 0){
-			Log.d(LOG_TAG,"injected token: "+ injectedToken);
-			this.tokenController.increaseTokens(injectedToken);
 		}
 	}
 

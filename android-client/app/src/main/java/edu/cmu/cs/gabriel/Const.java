@@ -45,7 +45,8 @@ public class Const {
 	//result type: one-hot
 	public static boolean RESPONSE_ENCODED_IMG=false;
 	public static boolean RESPONSE_ROI_FACE_SNIPPET=false;
-	public static boolean RESPONSE_JSON=true;
+	public static boolean RESPONSE_JSON=false;
+	public static boolean RESPONSE_PAIR=true;
 
 	//display preview or img processed from gabriel server
 	public static boolean DISPLAY_PREVIEW_ONLY=false;
