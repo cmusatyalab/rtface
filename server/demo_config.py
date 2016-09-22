@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 class Config(object):
-    DEBUG=False
+    DEBUG=True
     WRITE_PICTURE_DEBUG=False
     WRITE_PICTURE_DEBUG_PATH='./debug_picture/'
     FACE_MAX_DRIFT_PERCENT=0.5
@@ -19,3 +19,10 @@ class Config(object):
     DETECT_PROFILE_FACE=True
     # profile face cascade opencv xml path
     OPENCV_PROFILE_FACE_CASCADE_PATH='/home/faceswap-admin/dependency/dependency/opencv-src/opencv-3.1.0/data/lbpcascades/lbpcascade_profileface.xml'
+
+    # blurry detection
+    IMAGE_CLEAR_THRESHOLD=50
+#    IMAGE_CLEAR_THRESHOLD=65
+
+    # an arbitrary probability for cutting of openface recognition true/false
+    RECOG_PROB_THRESHOLD=0.8

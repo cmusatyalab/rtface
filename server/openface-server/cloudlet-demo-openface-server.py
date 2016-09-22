@@ -20,7 +20,7 @@ import sys
 import time
 
 fileDir = os.path.dirname(os.path.realpath(__file__))
-#sys.path.append(os.path.join(fileDir, "..", ".."))
+sys.path.append(os.path.join(fileDir, ".."))
 import pdb
 import txaio
 txaio.use_twisted()
@@ -50,6 +50,8 @@ from sklearn.svm import SVC
 from NetworkProtocol import *
 from threading import Lock
 import openface
+from demo_config import Config
+
 DEBUG = False
 STORE_IMG_DEBUG = False
 EXPERIMENT = 'e3'
@@ -108,8 +110,6 @@ svm_lock = Lock()
 mean_features=None
 # an arbitrary distance threashold for distinguish between one person and unknown
 SINGLE_PERSON_RECOG_THRESHOLD=0.8
-# an arbitrary probability for cutting of recognition true/false
-RECOG_PROB_THRESHOLD=0.7
 
 #TODO: non debug mode is not correct right now..
 class OpenFaceServerProtocol(WebSocketServerProtocol):
@@ -537,7 +537,7 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
                     confidence = predictions[maxI]
                     identity=maxI
                     # if confidence is too low
-                    if confidence < RECOG_PROB_THRESHOLD:
+                    if confidence < Config.RECOG_PROB_THRESHOLD:
                         identity=-1
                     print 'svm predict {} with {}'.format(identity, confidence)
                     svm_lock.release()
