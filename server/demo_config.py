@@ -21,8 +21,14 @@ class Config(object):
     OPENCV_PROFILE_FACE_CASCADE_PATH='/home/faceswap-admin/dependency/dependency/opencv-src/opencv-3.1.0/data/lbpcascades/lbpcascade_profileface.xml'
 
     # blurry detection
-    IMAGE_CLEAR_THRESHOLD=50
+    IMAGE_CLEAR_THRESHOLD=30
 #    IMAGE_CLEAR_THRESHOLD=65
 
     # an arbitrary probability for cutting of openface recognition true/false
     RECOG_PROB_THRESHOLD=0.8
+
+    ENCRYPT_DENATURED_REGION=True
+    ENCRYPT_DENATURED_REGION_OUTPUT_PATH='encrypted'
+    SECRET_KEY_FILE_PATH='secret.txt'
+
+    DB='privacy-mediator.db'

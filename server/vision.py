@@ -47,11 +47,14 @@ def create_trackers(frame, rois, use_dlib=False):
 
 # dlib wrappers    
 def drectangle_to_tuple(drectangle):
-    cur_roi = (int(drectangle.left()),
-                     int(drectangle.top()),
-                     int(drectangle.right()),
-                     int(drectangle.bottom()))
-    return cur_roi
+    if isinstance(drectangle, dlib.rectangle) or isinstance(drectangle, dlib.drectangle):
+        cur_roi = (int(drectangle.left()),
+                   int(drectangle.top()),
+                   int(drectangle.right()),
+                   int(drectangle.bottom()))
+        return cur_roi
+    else:
+        return drectangle
 
 # distance    
 def euclidean_distance_square(roi1, roi2):
@@ -176,7 +179,15 @@ def detect_profile_faces(img, flip):
 # merge old facerois with new face rois    
 def merge_faceROIs(old_faceROIs, new_faceROIs):
     pass
-    
+
+def get_image_region(img, drect):
+    (x1,y1,x2,y2) = drectangle_to_tuple(drect)
+    h,w,_ =img.shape
+    x1=clamp(x1,0,w-1)
+    y1=clamp(y1,0,h-1)
+    x2=clamp(x2,0,w-1)
+    y2=clamp(y2,0,h-1)            
+    return img[y1:y2+1, x1:x2+1]    
 
 # the lower the number is, the higher of blurness    
 def variance_of_laplacian(bgr_img):
