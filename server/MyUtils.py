@@ -173,4 +173,5 @@ class Tee(object):
         self.file.flush()
         self.stdout.flush()
     
-    
+def clamp(n, minn, maxn):
+    return max(min(maxn, n), minn)

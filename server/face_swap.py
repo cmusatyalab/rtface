@@ -21,13 +21,13 @@ import traceback
 from NetworkProtocol import *
 from openfaceClient import OpenFaceClient, AsyncOpenFaceClientProcess
 from demo_config import Config
+from encryption import encrypt
 
 WRITE_PICTURE_DEBUG=Config.WRITE_PICTURE_DEBUG
 if WRITE_PICTURE_DEBUG:
     remove_dir(Config.WRITE_PICTURE_DEBUG_PATH)
     create_dir(Config.WRITE_PICTURE_DEBUG_PATH)
     track_frame_id=0
-    
 DETECT_TRACK_RATIO = 10
 PROFILE_FACE = 'profile_face'
 # use a moving average here?
@@ -54,6 +54,15 @@ class FaceTransformation(object):
         ch = logging.StreamHandler(sys.stdout)
         ch.setFormatter(formatter)
         LOG.addHandler(ch)
+
+        if Config.ENCRYPT_DENATURED_REGION:
+            if not os.path.isdir(Config.ENCRYPT_DENATURED_REGION_OUTPUT_PATH):
+                create_dir(Config.ENCRYPT_DENATURED_REGION_OUTPUT_PATH)
+            if os.path.isfile(Config.SECRET_KEY_FILE_PATH):
+                secret=open(Config.SECRET_KEY_FILE_PATH).read()
+            else:
+                secret=encrypt.create_secret(Config.SECRET_KEY_FILE_PATH)
+            self.cipher=encrypt.create_cipher(secret)
         
         self.detector = dlib.get_frontal_face_detector()
         self.need_detection=False
@@ -398,7 +407,39 @@ class FaceTransformation(object):
                 blur_list.append(profile_face_json)
             except ValueError:
                 pass
-        
+
+    def get_face_rois(self, face_snippets):
+        rois=[]
+        for faceROI_json in face_snippets:
+            faceROI_dict = json.loads(faceROI_json)
+            x1 = faceROI_dict['roi_x1']
+            y1 = faceROI_dict['roi_y1']
+            x2 = faceROI_dict['roi_x2']
+            y2 = faceROI_dict['roi_y2']
+            rois.append( (x1,y1,x2,y2) )
+        return rois
+
+    encrypt_output_path=lambda self,s: os.path.normpath(os.path.join(Config.ENCRYPT_DENATURED_REGION_OUTPUT_PATH, '{}.jpg'.format(s)))
+
+    get_timestamped_id=lambda self,uid: '{}_{}'.format(time.strftime("%Y-%m-%d-%H-%M-%S"), uid)
+    
+    def persist_image(self, rgb_img, face_snippets):
+        rois=self.get_face_rois(face_snippets)
+        if WRITE_PICTURE_DEBUG:
+            for roi in rois:
+                draw_rois(rgb_img,rois)
+                imwrite_rgb(self.pic_output_path(str(self.frame_id)+'_track'), rgb_img)
+            
+        if Config.ENCRYPT_DENATURED_REGION:
+            for idx, roi in enumerate(rois):
+                denatured_region=get_image_region(rgb_img, roi)
+                retval, jpeg_data=cv2.imencode('.jpg', denatured_region)
+                ciphertext=encrypt.encode_aes(self.cipher, jpeg_data.tobytes())
+                uid='{}-{}'.format(self.frame_id, idx)
+                output_path=self.encrypt_output_path(self.get_timestamped_id(uid))
+                with open(output_path, 'w+') as f:
+                    f.write(ciphertext)
+                
     def swap_face(self,rgb_img, bgr_img=None):
 #        im = Image.fromarray(frame)
 #        im.save('/home/faceswap-admin/privacy-mediator/image/frame.jpg')
@@ -440,18 +481,7 @@ class FaceTransformation(object):
             
         LOG.debug('# faces returned: {}'.format(len(self.faces)))
 
-        if WRITE_PICTURE_DEBUG:
-            rois=[]
-            for faceROI_json in face_snippets:
-                faceROI_dict = json.loads(faceROI_json)
-                x1 = faceROI_dict['roi_x1']
-                y1 = faceROI_dict['roi_y1']
-                x2 = faceROI_dict['roi_x2']
-                y2 = faceROI_dict['roi_y2']
-                rois.append( (x1,y1,x2,y2) )
-            draw_rois(rgb_img,rois)
-            imwrite_rgb(self.pic_output_path(str(self.frame_id)+'_track'), rgb_img)
-
+        self.persist_image(rgb_img, face_snippets)
         self.frame_id +=1
         
         return face_snippets
