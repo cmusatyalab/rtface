@@ -73,11 +73,11 @@ class FaceFrameBuffer(FrameBuffer):
     #         else:
     #             new_roi = tracker.get_position()
         
-    def get_itm_idx_by_fid(self, fid):
-        if self.buf:
-            lowest_fid = self.buf[-1].fid
+    def get_itm_idx_by_fid(self, fid, buf):
+        if buf:
+            lowest_fid = buf[-1].fid
             diff = fid - lowest_fid
-            return len(self.buf) - (diff+1)
+            return len(buf) - (diff+1)
         else:
             return -1
 
@@ -149,24 +149,27 @@ class FaceFrameBuffer(FrameBuffer):
                 bx=face.roi
                 bxid=face.frid
                 # race condition !!!
-                self.lock.acquire()                
-                mf_idx=self.get_itm_idx_by_fid(fid)
-                if mf_idx > -1 and mf_idx < len(self.buf):
+                self.lock.acquire()
+                buf_snapshot=self.buf[::]
+                self.lock.release()                
+                mf_idx=self.get_itm_idx_by_fid(fid, buf_snapshot)
+                prev_itms=[]
+                lat_itms=[]
+                if mf_idx > -1 and mf_idx < len(buf_snapshot):
                     mf=self.buf[mf_idx]
                     mf.faceROIs.append(FaceROI(bx, frid=bxid))
                     LOG.debug('fid:{} --> mf_idx:{}'.format(fid,mf_idx))
                     prev_itms=self.buf[mf_idx+1:]
                     lat_itms=self.buf[:mf_idx]
-                self.lock.release()                
-                # make sure we can track with increasing index
-                lat_itms=lat_itms[::-1]
-                dbx=tuple_to_drectangle(bx)
-                tracker=create_tracker(mf.frame, dbx, use_dlib=Config.DLIB_TRACKING)
-#                tracker=create_tracker(mf.frame, dbx, use_dlib=False)                
-                self.revalidate(prev_itms, dbx, bxid, tracker)
-                tracker.start_track(mf.frame,dbx)
-                self.revalidate(lat_itms, dbx, bxid, tracker)
-                self.cur_faces=[froi.name for froi in self.buf[0].faceROIs]
+                    lat_itms=lat_itms[::-1]                    
+                    # make sure we can track with increasing index
+                    dbx=tuple_to_drectangle(bx)
+                    tracker=create_tracker(mf.frame, dbx, use_dlib=Config.DLIB_TRACKING)
+    #                tracker=create_tracker(mf.frame, dbx, use_dlib=False)                
+                    self.revalidate(prev_itms, dbx, bxid, tracker)
+                    tracker.start_track(mf.frame,dbx)
+                    self.revalidate(lat_itms, dbx, bxid, tracker)
+                    self.cur_faces=[froi.name for froi in self.buf[0].faceROIs]
             LOG.debug('bg-thread revalidation finished')
         else:
             LOG.debug('bg-thread no need for revalidation')

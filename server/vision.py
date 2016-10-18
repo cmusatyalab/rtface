@@ -225,6 +225,7 @@ class FaceROI(object):
         self.tracker = tracker
         self.swap_tmp_data=None
         self.frid=frid
+        self.low_confidence=False
 
     def __copy__(self):
         newone = FaceROI(self.roi,
@@ -280,6 +281,14 @@ def enlarge_roi(roi, padding, frame_width, frame_height):
     y2=min(y2+padding,frame_height-1)
     return (x1, y1, x2, y2)
 
+def clamp_roi(roi, frame_width, frame_height):
+    (x1, y1, x2, y2) = roi
+    x1=clamp(x1, 0, frame_width-1)
+    y1=clamp(y1, 0, frame_height-1)
+    x2=clamp(x2, 0, frame_width-1)
+    y2=clamp(y2, 0, frame_height-1)
+    return (x1, y1, x2, y2)
+    
 def iou_area(a, b):
     # compute overlaps
     # intersection

@@ -240,7 +240,8 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
             # swap faces
             faceFrame, snippets = self.transformer.swap_face(rgb_img, bgr_img)
             header_dict['type']=AppDataProtocol.TYPE_detect
-            header_dict['faceROI_jsons']=snippets
+#            header_dict['faceROI_jsons']=snippets
+            header_dict['faceROI_jsons']=[]
             if faceFrame==None:
                 retval='dummy'+str(time.time())
             else:
@@ -256,11 +257,13 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
                     if name in self.whitelist:
                         print 'whitelisting roi {}'.format(faceROI)
                     else:
+                        faceROI.roi=clamp_roi(faceROI.roi, width, height)
                         (x1, y1, x2, y2) = enlarge_roi( faceROI.roi, 10, width, height)
                         blur_rois.append( (x1, y1, x2, y2) )
 
                 for roi in blur_rois:
                     (x1, y1, x2, y2)=roi
+                    LOG.debug('denaturing roi {}'.format((x1, y1, x2, y2)))
                     bgr_img[y1:y2+1, x1:x2+1]=np.resize(np.array([0]), (y2+1-y1, x2+1-x1,3))
                 
                 _, retval=cv2.imencode('.jpg', bgr_img)
