@@ -25,14 +25,17 @@ def create_dlib_tracker(frame, roi):
 
 @timeit    
 def create_tracker(frame, roi, use_dlib=False):
+    if not (isinstance(roi, dlib.rectangle)):
+        bx=tuple_to_drectangle(roi)
+    else:
+        bx=roi
+    
     if use_dlib:
         tracker = dlib.correlation_tracker()        
     else:
-        tracker = meanshiftTracker() 
-    (roi_x1, roi_y1, roi_x2, roi_y2) = roi
-    LOG.debug('create tracker received: {}'.format(roi))
-    tracker.start_track(frame,
-                        dlib.rectangle(roi_x1, roi_y1, roi_x2, roi_y2))
+        tracker = meanshiftTracker()
+    tracker.start_track(frame,bx)
+    LOG.debug('create tracker received: {}'.format(bx))
     return tracker
 
 def create_trackers(frame, rois, use_dlib=False):
@@ -56,6 +59,13 @@ def drectangle_to_tuple(drectangle):
     else:
         return drectangle
 
+def tuple_to_drectangle(bx):
+    if isinstance(bx, tuple):
+        (roi_x1, roi_y1, roi_x2, roi_y2) = bx    
+        return dlib.rectangle(roi_x1, roi_y1, roi_x2, roi_y2)
+    else:
+        return bx
+        
 # distance    
 def euclidean_distance_square(roi1, roi2):
     result = abs(roi1[0] - roi2[0])**2 + abs(roi1[1] - roi2[1])**2
@@ -206,15 +216,24 @@ def is_clear(bgr_img, threshold=40):
         return False
     return True
     
-    
+
 class FaceROI(object):
-    def __init__(self, roi, data=None, name=None, tracker=None):
-        self.roi = roi
+    def __init__(self, roi, data=None, name=None, tracker=None, frid=-1):
+        self.roi = drectangle_to_tuple(roi)
         self.data = data
         self.name = name
         self.tracker = tracker
         self.swap_tmp_data=None
+        self.frid=frid
 
+    def __copy__(self):
+        newone = FaceROI(self.roi,
+                         data=None,
+                         name=self.name,
+                         tracker=None,
+                         frid=self.frid)
+        return newone
+        
     # returned ROI may go out of bounds --> representing failure of tracking
     def get_json(self, send_data=False):
         (roi_x1, roi_y1, roi_x2, roi_y2) = self.roi        
@@ -226,7 +245,6 @@ class FaceROI(object):
             'name':self.name
             }
         if send_data:
-            # msg['data'] = np_array_to_jpeg_string(self.data)
             msg['data'] = np_array_to_jpeg_string(self.data)
         return json.dumps(msg)
 
@@ -234,3 +252,30 @@ class FaceROI(object):
     def get_location(self):
         (roi_x1, roi_y1, roi_x2, roi_y2) = self.roi
         return ((roi_x1 + roi_x2)/2, (roi_y1+roi_y2)/2)
+
+    def __str__(self):
+        return 'frid {}: {}, {}'.format(self.frid, self.roi, self.name)
+
+    def __repr__(self):
+        return 'frid {}: {}, {}'.format(self.frid, self.roi, self.name)
+        
+class FaceFrame(object):
+    def __init__(self, fid, frame, faceROIs):
+        # frame id
+        self.fid = fid
+        self.frame=frame
+        self.faceROIs=faceROIs
+
+    def __repr__(self):
+        return '{}: {}'.format(self.fid, self.faceROIs)
+
+    def __str__(self):
+        return '{}: {}'.format(self.fid, self.faceROIs)
+
+def enlarge_roi(roi, padding, frame_width, frame_height):
+    (x1, y1, x2, y2) = roi
+    x1=max(x1-padding,0)
+    y1=max(y1-padding,0)
+    x2=min(x2+padding,frame_width-1)
+    y2=min(y2+padding,frame_height-1)
+    return (x1, y1, x2, y2)

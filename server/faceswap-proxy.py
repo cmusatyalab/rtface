@@ -40,6 +40,8 @@ import Queue
 from demo_config import Config
 import zmq
 from time import sleep
+from vision import *
+from MyUtils import create_dir
 
 gabriel_path=os.path.expanduser("~/gabriel-v2/gabriel/server")
 if os.path.isdir(gabriel_path) is True:
@@ -77,6 +79,9 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
         super(self.__class__, self).__init__(*args, **kwargs)
         self.transformer = transformer
         self.prev_timestamp = time.time()*1000
+        self.whitelist=[]
+        if Config.PERSIST_DENATURED_IMAGE:
+            create_dir(Config.PERSIST_DENATURED_IMAGE_OUTPUT_PATH)
 
     def gen_response(self, response_type, value, frame=None):
         msg = {
@@ -208,6 +213,10 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
                 print 'mapping:'
                 print '{0} <-- {1}'.format(from_person, to_person)
             sys.stdout.flush()
+        elif 'set_whitelist' in header_dict:
+            self.whitelist=header_dict['set_whitelist']
+            print 'server received whitelist: {}'.format(self.whitelist)
+            sys.stdout.flush()            
 
         training = False
         if 'training' in header_dict:
@@ -217,8 +226,9 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
         # just pixel data
         np_data=np.fromstring(data, dtype=np.uint8)
         bgr_img=cv2.imdecode(np_data,cv2.IMREAD_COLOR)
-        rgb_img = cv2.cvtColor(bgr_img, cv2.COLOR_BGR2RGB)        
-            
+        rgb_img=cv2.cvtColor(bgr_img, cv2.COLOR_BGR2RGB)        
+        retval = np_data.tostring()
+        
         if training:
             cnt, face_json = self.transformer.train(rgb_img, name)
             header_dict['type']=AppDataProtocol.TYPE_train
@@ -228,9 +238,37 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
                 header_dict['faceROI_jsons']=[face_json]
         else:
             # swap faces
-            snippets = self.transformer.swap_face(rgb_img, bgr_img)
+            faceFrame, snippets = self.transformer.swap_face(rgb_img, bgr_img)
             header_dict['type']=AppDataProtocol.TYPE_detect
             header_dict['faceROI_jsons']=snippets
+            if faceFrame==None:
+                retval='dummy'+str(time.time())
+            else:
+                # need to return img, encode the image into jpeg!!
+                rgb_img=faceFrame.frame
+                bgr_img=cv2.cvtColor(rgb_img, cv2.COLOR_RGB2BGR)
+                
+                # blur
+                height, width, _ = bgr_img.shape
+                blur_rois=[]                
+                for faceROI in faceFrame.faceROIs:
+                    name = faceROI.name
+                    if name in self.whitelist:
+                        print 'whitelisting roi {}'.format(faceROI)
+                    else:
+                        (x1, y1, x2, y2) = enlarge_roi( faceROI.roi, 10, width, height)
+                        blur_rois.append( (x1, y1, x2, y2) )
+
+                for roi in blur_rois:
+                    (x1, y1, x2, y2)=roi
+                    bgr_img[y1:y2+1, x1:x2+1]=np.resize(np.array([0]), (y2+1-y1, x2+1-x1,3))
+                
+                _, retval=cv2.imencode('.jpg', bgr_img)
+                fname='{}'.format(time.strftime("%Y-%m-%d-%H-%M-%S.jpg"))
+                fpath=os.path.join(Config.PERSIST_DENATURED_IMAGE_OUTPUT_PATH, fname)
+                with open(fpath, 'w+') as f:
+                    f.write(retval)
+                retval=retval.tostring()
 
         if Config.DEBUG:
             end = time.time()
@@ -240,8 +278,8 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
         self.transformer.tracking_thread_idle_event.set()
 
         # TODO: hacky way to wait detector to finish...
-        sleep(0.04)
-        return np_data.tostring()
+        # sleep(0.04)
+        return retval
             
         # using PIL approach to open a jpeg data
         # image_raw = Image.open(io.BytesIO(data))
