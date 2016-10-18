@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 class Config(object):
-    DEBUG=True
+    DEBUG=False
     WRITE_PICTURE_DEBUG=False
     WRITE_PICTURE_DEBUG_PATH='./debug_picture/'
     FACE_MAX_DRIFT_PERCENT=0.5
@@ -24,6 +24,9 @@ class Config(object):
     IMAGE_CLEAR_THRESHOLD=30
 #    IMAGE_CLEAR_THRESHOLD=65
 
+    # detect
+    DETECT_FRAME_INTERVAL=20
+
     # an arbitrary probability for cutting of openface recognition true/false
     RECOG_PROB_THRESHOLD=0.8
 
@@ -31,4 +34,6 @@ class Config(object):
     ENCRYPT_DENATURED_REGION_OUTPUT_PATH='encrypted'
     SECRET_KEY_FILE_PATH='secret.txt'
 
-    DB='privacy-mediator.db'
+    PERSIST_DENATURED_IMAGE=True
+    PERSIST_DENATURED_IMAGE_OUTPUT_PATH='./denatured/'
+    
