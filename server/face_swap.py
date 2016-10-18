@@ -33,7 +33,7 @@ if Config.WRITE_PICTURE_DEBUG:
 DETECT_TRACK_RATIO = 10
 PROFILE_FACE = 'profile_face'
 # use a moving average here?
-TRACKER_CONFIDENCE_THRESHOLD=5
+TRACKER_CONFIDENCE_THRESHOLD=3
 
 FrameTuple=namedtuple('FrameTuple', ['frame','fid'])
 
@@ -109,22 +109,38 @@ class FaceTransformation(object):
         self.image_width=Config.MAX_IMAGE_WIDTH
 
         self.frame_id=0
-        self.framebuffer=FaceFrameBuffer(30)
+        self.framebuffer=FaceFrameBuffer(20)
 
-    def on_recv_detection_update(self, tracker_updates):
+    def on_recv_detection_update(self, tracker_updates, old_faces):
+        # remove low confidence trackers
+        old_faces=[face for face in old_faces if not face.low_confidence]
         faces = tracker_updates['faces']
+        new_faces=[]        
         LOG.debug('bg-thread received detection # {} faces'.format(len(faces))) 
         (tracker_frame, fid) = tracker_updates['frame']
         for face in faces:
+            matched=False
+            for old_face in old_faces:
+                if iou_area(face.roi, old_face.roi) > 0.5:
+                    old_face.tracker.start_track(tracker_frame, tuple_to_drectangle(face.roi))
+                    LOG.debug('bg-thread find match frid {} --> frid {}'.format(old_face.frid, face.frid))
+                    old_face.frid=face.frid
+                    matched=True
+                    new_faces.append(old_face)
+                    break
+            if not matched:
+                LOG.debug('bg-thread no match new frid {}'.format(face.frid))
+                face.name=None
+                tracker = create_tracker(tracker_frame, face.roi, use_dlib=Config.DLIB_TRACKING)
+                face.tracker = tracker
+                new_faces.append(face)
+        return fid, new_faces
+            
             # nearest_face = self.find_nearest_face(face, self.faces)
             # if (nearest_face):
             #     face.name = nearest_face.name
             # else:
             #     face.name=None
-            face.name=None
-            tracker = create_tracker(tracker_frame, face.roi, use_dlib=Config.DLIB_TRACKING)
-            face.tracker = tracker
-        return fid, faces
 
     def on_recv_recognition_update(self, update, in_fly_recognition_info):
         if (isinstance(update, RecognitionRequestUpdate)):
@@ -174,8 +190,9 @@ class FaceTransformation(object):
             if (self.correct_tracking_event.is_set()):
                 try:
                     tracker_updates = self.trackers_queue.get(timeout=0.1)
-                    fid, faces=self.on_recv_detection_update(tracker_updates)
-                    self.faces_lock.acquire()                                
+                    old_faces=self.faces[::]
+                    fid, faces=self.on_recv_detection_update(tracker_updates, old_faces)
+                    self.faces_lock.acquire()                                        
                     self.faces = faces
                     self.faces_lock.release()
                     self.framebuffer.update_bx(fid, faces)
@@ -412,7 +429,8 @@ class FaceTransformation(object):
                     guess = tracker.get_position()
                     conf=tracker.update(rgb_img, tracker.get_position())
                     if face.name != PROFILE_FACE and conf < TRACKER_CONFIDENCE_THRESHOLD:
-                        LOG.debug('frontal tracker conf too low {}'.format(conf))     
+                        LOG.debug('frontal tracker conf too low {}'.format(conf))
+                        face.low_confidence=True
                         is_low_confidence=True
                     
                 new_roi = tracker.get_position()
@@ -426,10 +444,7 @@ class FaceTransformation(object):
                               int(new_roi.right()),
                               int(new_roi.bottom()))
                 face.roi = (x1,y1,x2,y2)
-                if (is_small_face(face.roi)):
-                    to_be_removed_face.append(face)
-                faces = [face for face in faces if face not in to_be_removed_face]
-        return faces, is_low_confidence
+        return is_low_confidence
 
     def add_profile_faces_blur(self, bgr_img, blur_list):
         profile_faces=detect_profile_faces(bgr_img, flip=True)
@@ -492,9 +507,10 @@ class FaceTransformation(object):
         LOG.debug('received image. {}x{}'.format(self.image_width, height))
 
         # track existing faces
-        self.faces_lock.acquire()                            
-        self.faces, tracker_fail =self.track_faces(rgb_img, self.faces)
+        self.faces_lock.acquire()
+        faces=self.faces[::]
         self.faces_lock.release()        
+        tracker_fail =self.track_faces(rgb_img, faces)
         
         face_snippets = []
         for face in self.faces:
