@@ -385,7 +385,7 @@ class FaceTransformation(object):
                 #     draw_rois(frame,rois, hint="detect")
                 #     imwrite_rgb(self.pic_output_path(str(detection_frame_id)+'_detect'), frame)
                     
-
+    @timeit
     def track_faces(self, rgb_img, faces):
         LOG.debug('# faces tracking {} '.format(len(faces)))
         to_be_removed_face = []
@@ -474,7 +474,8 @@ class FaceTransformation(object):
                 output_path=self.encrypt_output_path(self.get_timestamped_id(uid))
                 with open(output_path, 'w+') as f:
                     f.write(ciphertext)
-                
+
+    @timeit                
     def swap_face(self,rgb_img, bgr_img=None):
 #        im = Image.fromarray(frame)
 #        im.save('/home/faceswap-admin/privacy-mediator/image/frame.jpg')

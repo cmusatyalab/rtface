@@ -279,3 +279,23 @@ def enlarge_roi(roi, padding, frame_width, frame_height):
     x2=min(x2+padding,frame_width-1)
     y2=min(y2+padding,frame_height-1)
     return (x1, y1, x2, y2)
+
+def iou_area(a, b):
+    # compute overlaps
+    # intersection
+    a=drectangle_to_tuple(a)
+    b=drectangle_to_tuple(b)
+    ixmin = np.maximum(a[0], b[0])
+    iymin = np.maximum(a[1], b[1])
+    ixmax = np.minimum(a[2], b[2])
+    iymax = np.minimum(a[3], b[3])
+    iw = np.maximum(ixmax - ixmin + 1., 0.)
+    ih = np.maximum(iymax - iymin + 1., 0.)
+    inters = iw * ih
+
+    uni = ((b[2] - b[0] + 1.) * (b[3] - b[1] + 1.) +
+           (a[2] - a[0] + 1.) *
+           (a[3] - a[1] + 1.) - inters)
+
+    overlaps = clamp(1.0*inters / uni, 0, 1)
+    return overlaps

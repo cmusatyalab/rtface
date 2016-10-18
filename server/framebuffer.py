@@ -48,18 +48,19 @@ class FaceFrameBuffer(FrameBuffer):
     #         return False
 
     def need_revalidate(self, fid, faceROIs):
-        LOG.debug('bg-thread framebuffer cur_faces: {}'.format(self.cur_faces))
-        LOG.debug('bg-thread validation update faces {}'.format(faceROIs))
-        if (len(faceROIs) > len(self.cur_faces)):
-            mf_idx=self.get_itm_idx_by_fid(fid)
-            if mf_idx>0 and mf_idx<len(self.buf):
-                return True
-            else:
-                LOG.debug('frame already returned! \
-                           consider increase the size of frame buffer')
-                return False
-        else:
-            return False
+        # LOG.debug('bg-thread framebuffer cur_faces: {}'.format(self.cur_faces))
+        # LOG.debug('bg-thread validation update faces {}'.format(faceROIs))
+        # if (len(faceROIs) > len(self.cur_faces)):
+        #     mf_idx=self.get_itm_idx_by_fid(fid)
+        #     if mf_idx>0 and mf_idx<len(self.buf):
+        #         return True
+        #     else:
+        #         LOG.debug('frame already returned! \
+        #                    consider increase the size of frame buffer')
+        #         return False
+        # else:
+        #     return False
+        return True
             
             
     # def revalidate_frame(self, trackers, faceframe):
@@ -110,6 +111,14 @@ class FaceFrameBuffer(FrameBuffer):
     #         froi = FaceROI(drectangle_to_tuple(bx), frid=bxid)
     #         prev_itm.faceROIs.append(froi)
 
+    def has_bx(self, item, bx):
+        assert(item != None)
+        for faceROI in item.faceROIs:
+            if iou_area(faceROI.roi, bx) > 0.5:
+                return True
+        return False
+
+    @timeit
     def revalidate(self, items, bx, bxid, tracker):
         # track frames coming in earlier:
         for item in items:
@@ -124,6 +133,9 @@ class FaceFrameBuffer(FrameBuffer):
                 else:
                     raise TypeError("unknown tracker type")
                 bx=tracker.get_position()
+                if self.has_bx(item, bx):
+                    LOG.debug('stopped revalidation due to duplicate bx')
+                    break
 #                froi = FaceROI(bx, frid=bxid, name=self.cur_faces[0])
                 froi = FaceROI(bx, frid=bxid, name=None)
                 item.faceROIs.append(froi)
@@ -149,8 +161,8 @@ class FaceFrameBuffer(FrameBuffer):
                 # make sure we can track with increasing index
                 lat_itms=lat_itms[::-1]
                 dbx=tuple_to_drectangle(bx)
-#                tracker=create_tracker(mf.frame, dbx, use_dlib=Config.DLIB_TRACKING)
-                tracker=create_tracker(mf.frame, dbx, use_dlib=False)                
+                tracker=create_tracker(mf.frame, dbx, use_dlib=Config.DLIB_TRACKING)
+#                tracker=create_tracker(mf.frame, dbx, use_dlib=False)                
                 self.revalidate(prev_itms, dbx, bxid, tracker)
                 tracker.start_track(mf.frame,dbx)
                 self.revalidate(lat_itms, dbx, bxid, tracker)
