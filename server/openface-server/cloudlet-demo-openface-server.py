@@ -109,7 +109,7 @@ svm = None
 svm_lock = Lock()
 mean_features=None
 # an arbitrary distance threashold for distinguish between one person and unknown
-SINGLE_PERSON_RECOG_THRESHOLD=0.8
+SINGLE_PERSON_RECOG_THRESHOLD=0.5
 
 #TODO: non debug mode is not correct right now..
 class OpenFaceServerProtocol(WebSocketServerProtocol):
@@ -491,13 +491,11 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
                 }
                 resp=msg
         else:
-            if DEBUG:
-                start =time.time()
+            start =time.time()
 
             rep = net.forward(alignedFace)
 
-            if DEBUG:
-                print('net forward time: {} ms'.format((time.time()-start)*1000))
+            print('net forward time: {} ms'.format((time.time()-start)*1000))
             if STORE_IMG_DEBUG:
                 global rep_file
                 print >> rep_file, str(phash)+':\n'
@@ -536,10 +534,10 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
                     maxI = np.argmax(predictions)
                     confidence = predictions[maxI]
                     identity=maxI
+                    print 'svm predict {} with {}'.format(identity, confidence)                    
                     # if confidence is too low
                     if confidence < Config.RECOG_PROB_THRESHOLD:
                         identity=-1
-                    print 'svm predict {} with {}'.format(identity, confidence)
                     svm_lock.release()
                 else:
                     print "No SVM trained"

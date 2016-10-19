@@ -33,7 +33,7 @@ if Config.WRITE_PICTURE_DEBUG:
 DETECT_TRACK_RATIO = 10
 PROFILE_FACE = 'profile_face'
 # use a moving average here?
-TRACKER_CONFIDENCE_THRESHOLD=3
+TRACKER_CONFIDENCE_THRESHOLD=2
 
 FrameTuple=namedtuple('FrameTuple', ['frame','fid'])
 
@@ -109,24 +109,26 @@ class FaceTransformation(object):
         self.image_width=Config.MAX_IMAGE_WIDTH
 
         self.frame_id=0
-        self.framebuffer=FaceFrameBuffer(20)
+        self.framebuffer=FaceFrameBuffer(30)
 
     def on_recv_detection_update(self, tracker_updates, old_faces):
         # remove low confidence trackers
         old_faces=[face for face in old_faces if not face.low_confidence]
         faces = tracker_updates['faces']
         new_faces=[]        
-        LOG.debug('bg-thread received detection # {} faces'.format(len(faces))) 
+        LOG.debug('bg-thread received detection # {} faces'.format(len(faces)))
         (tracker_frame, fid) = tracker_updates['frame']
+        matched_old_faces_indices=[]
         for face in faces:
             matched=False
-            for old_face in old_faces:
+            for faid, old_face in enumerate(old_faces):
                 if iou_area(face.roi, old_face.roi) > 0.5:
                     old_face.tracker.start_track(tracker_frame, tuple_to_drectangle(face.roi))
                     LOG.debug('bg-thread find match frid {} --> frid {}'.format(old_face.frid, face.frid))
                     old_face.frid=face.frid
                     matched=True
                     new_faces.append(old_face)
+                    matched_old_faces_indices.append(faid)
                     break
             if not matched:
                 LOG.debug('bg-thread no match new frid {}'.format(face.frid))
@@ -134,6 +136,8 @@ class FaceTransformation(object):
                 tracker = create_tracker(tracker_frame, face.roi, use_dlib=Config.DLIB_TRACKING)
                 face.tracker = tracker
                 new_faces.append(face)
+        # do not remove the tracker if the confidence is still high
+#        new_faces.extend([face for idx, face in enumerate(old_faces) if idx not in matched_old_faces_indices])
         return fid, new_faces
             
             # nearest_face = self.find_nearest_face(face, self.faces)
@@ -182,6 +186,7 @@ class FaceTransformation(object):
         #TODO: should yield computing power unless there are events going on
         # right now in between frames, this loop just keeps computing forever
         in_fly_recognition_info={}
+        no_detection=0
         while (not stop_event.is_set()):
             self.tracking_thread_idle_event.wait(1)
             if (not self.tracking_thread_idle_event.is_set()):
@@ -190,13 +195,22 @@ class FaceTransformation(object):
             if (self.correct_tracking_event.is_set()):
                 try:
                     tracker_updates = self.trackers_queue.get(timeout=0.1)
-                    old_faces=self.faces[::]
-                    fid, faces=self.on_recv_detection_update(tracker_updates, old_faces)
-                    self.faces_lock.acquire()                                        
-                    self.faces = faces
-                    self.faces_lock.release()
-                    self.framebuffer.update_bx(fid, faces)
-                    LOG.debug('bg-thread updated self.faces # {} faces'.format(len(self.faces))) 
+                    if tracker_updates['frame'] != None:
+                        no_detection=0
+                        old_faces=self.faces[::]
+                        fid, faces=self.on_recv_detection_update(tracker_updates, old_faces)
+                        self.faces_lock.acquire()                                        
+                        self.faces = faces
+                        self.faces_lock.release()
+                        self.framebuffer.update_bx(fid, faces)
+                        LOG.debug('bg-thread updated self.faces # {} faces'.format(len(self.faces)))
+                    else:
+                        # nothing detected simple way to remove all trackers
+                        no_detection+=1
+                        if no_detection % 10 == 0:
+                            self.faces_lock.acquire()                                        
+                            self.faces = []
+                            self.faces_lock.release()
                     self.correct_tracking_event.clear()                    
                 except Queue.Empty:
                     LOG.debug('bg-thread updating faces queue empty!')                    
@@ -369,8 +383,9 @@ class FaceTransformation(object):
                     continue
                 rois = detect_faces(frame, detector, upsample_num_times=Config.DLIB_DETECTOR_UPSAMPLE_TIMES, adjust_threshold=Config.DLIB_DETECTOR_ADJUST_THRESHOLD)
                 cur_bxids = [bxid+idx for idx, roi in enumerate(rois)]
+                faces=[]
                 if (len(rois)>0):
-                    LOG.info('fid:{} detected:{}'.format(fid, rois))
+                    LOG.debug('fid:{} detected:{}'.format(fid, rois))
                     self.send_recognition_request(rois,
                                                   frame,
                                                   recognition_busy_event,
@@ -384,9 +399,11 @@ class FaceTransformation(object):
                     # faces=self.catchup(frame, rois, img_queue, cur_bxids)
                     faces=self.create_faceROIs(rois, cur_bxids)
                     tracker_updates = {'frame':FrameTuple(frame, fid), 'faces':faces}
-                    trackers_queue.put(tracker_updates)
-                    LOG.debug('put detection updates onto the queue # {} faces'.format(len(faces)))
-                    correct_tracking_event.set()
+                else:
+                    tracker_updates = {'frame':None, 'faces':[]}   
+                trackers_queue.put(tracker_updates)
+                LOG.debug('put detection updates onto the queue # {} faces'.format(len(faces)))
+                correct_tracking_event.set()
             # wake thread up for terminating
             correct_tracking_event.set()
         except Exception as e:
