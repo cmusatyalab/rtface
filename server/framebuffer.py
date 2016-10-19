@@ -157,19 +157,20 @@ class FaceFrameBuffer(FrameBuffer):
                 lat_itms=[]
                 if mf_idx > -1 and mf_idx < len(buf_snapshot):
                     mf=self.buf[mf_idx]
-                    mf.faceROIs.append(FaceROI(bx, frid=bxid))
-                    LOG.debug('fid:{} --> mf_idx:{}'.format(fid,mf_idx))
-                    prev_itms=self.buf[mf_idx+1:]
-                    lat_itms=self.buf[:mf_idx]
-                    lat_itms=lat_itms[::-1]                    
-                    # make sure we can track with increasing index
-                    dbx=tuple_to_drectangle(bx)
-                    tracker=create_tracker(mf.frame, dbx, use_dlib=Config.DLIB_TRACKING)
-    #                tracker=create_tracker(mf.frame, dbx, use_dlib=False)                
-                    self.revalidate(prev_itms, dbx, bxid, tracker)
-                    tracker.start_track(mf.frame,dbx)
-                    self.revalidate(lat_itms, dbx, bxid, tracker)
-                    self.cur_faces=[froi.name for froi in self.buf[0].faceROIs]
+                    if not self.has_bx(mf, bx):
+                        mf.faceROIs.append(FaceROI(bx, frid=bxid))
+                        LOG.debug('fid:{} --> mf_idx:{}'.format(fid,mf_idx))
+                        prev_itms=self.buf[mf_idx+1:]
+                        lat_itms=self.buf[:mf_idx]
+                        lat_itms=lat_itms[::-1]                    
+                        # make sure we can track with increasing index
+                        dbx=tuple_to_drectangle(bx)
+                        tracker=create_tracker(mf.frame, dbx, use_dlib=Config.DLIB_TRACKING)
+        #                tracker=create_tracker(mf.frame, dbx, use_dlib=False)                
+                        self.revalidate(prev_itms, dbx, bxid, tracker)
+                        tracker.start_track(mf.frame,dbx)
+                        self.revalidate(lat_itms, dbx, bxid, tracker)
+                        self.cur_faces=[froi.name for froi in self.buf[0].faceROIs]
             LOG.debug('bg-thread revalidation finished')
         else:
             LOG.debug('bg-thread no need for revalidation')

@@ -146,6 +146,9 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
         if isinstance(name, basestring):
             resp=self.transformer.openface_client.removePerson(name)
             remove_success=json.loads(resp)['val']
+            name=str(name)
+            if name in self.whitelist:
+                self.whitelist.remove(name)
             print 'removing person :{} success: {}'.format(name, remove_success)
         else:
             print ('unsupported type for name of a person')
@@ -255,7 +258,7 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
                 for faceROI in faceFrame.faceROIs:
                     name = faceROI.name
                     if name in self.whitelist:
-                        print 'whitelisting roi {}'.format(faceROI)
+                        print('whitelisting roi {}'.format(faceROI))
                     else:
                         faceROI.roi=clamp_roi(faceROI.roi, width, height)
                         (x1, y1, x2, y2) = enlarge_roi( faceROI.roi, 10, width, height)
@@ -263,7 +266,7 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
 
                 for roi in blur_rois:
                     (x1, y1, x2, y2)=roi
-                    LOG.debug('denaturing roi {}'.format((x1, y1, x2, y2)))
+#                    print('denaturing roi {}'.format((x1, y1, x2, y2)))
                     bgr_img[y1:y2+1, x1:x2+1]=np.resize(np.array([0]), (y2+1-y1, x2+1-x1,3))
                 
                 _, retval=cv2.imencode('.jpg', bgr_img)
