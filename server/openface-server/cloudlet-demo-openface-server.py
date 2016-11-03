@@ -53,6 +53,7 @@ import openface
 import pickle
 from demo_config import Config
 os.environ["OMP_NUM_THREADS"] = "2"
+import redis
 
 DEBUG = False
 STORE_IMG_DEBUG = False
@@ -90,6 +91,7 @@ align = openface.AlignDlib(args.dlibFacePredictor)
 net = openface.TorchNeuralNet(args.networkModel, imgDim=args.imgDim,
                               cuda=args.cuda)
 
+r_server = redis.StrictRedis('localhost')
 
 class Face:
 
@@ -116,7 +118,7 @@ if os.path.isfile('svm.model'):
 svm_lock = Lock()
 mean_features=None
 # an arbitrary distance threashold for distinguish between one person and unknown
-SINGLE_PERSON_RECOG_THRESHOLD=0.5
+SINGLE_PERSON_RECOG_THRESHOLD=0.6
 
 #TODO: non debug mode is not correct right now..
 class OpenFaceServerProtocol(WebSocketServerProtocol):
@@ -438,6 +440,37 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
             pickle.dump(people, open('svm.label', 'wb+'))
             print("saved")
 
+    def get_features_from_redis(self, person, identity):
+        reps=r_server.lrange(person,0,-1)
+        ret=[]
+        for rep_json in reps:
+            rep=json.loads(rep_json)
+            ret.append(Face(rep, identity))
+        return ret
+            
+    def train_from_redis(self):
+        global images
+        global people
+        global svm
+        global svm_lock
+
+        if int(r_server.get('update')) == 1:
+            # peopel is current people
+            people_redis=r_server.lrange('people', 0, -1)
+            print('training from redis: {}'.format(people_redis))
+            people=map(str, people_redis)
+            idx=0
+            images={}
+            for p_idx, person in enumerate(people):
+                faces=self.get_features_from_redis(person, p_idx)
+                for face in faces:
+                    images[str(idx)]=face
+                    idx+=1
+            self.trainSVM()
+            r_server.set('update',0)
+        else:
+            print('no changes indicated from redis server')
+
     def processFrame(self, dataURL, name):
         global images
         global people
@@ -445,6 +478,8 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
         global training
         global svm_lock
 
+        self.train_from_redis()
+        
         head = "data:image/jpeg;base64,"
         if (not dataURL.startswith(head)):
             print('received wrong dataURL. not a jpeg image')
