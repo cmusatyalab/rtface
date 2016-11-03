@@ -44,6 +44,7 @@ import Queue
 from demo_config import Config
 from vision import *
 from MyUtils import create_dir, get_unused_port
+import redis
 
 if os.path.isdir(Config.GABRIEL_PATH) is True:
     sys.path.insert(0, Config.GABRIEL_PATH)
@@ -53,6 +54,7 @@ import gabriel.proxy
 
 LOG = gabriel.logging.getLogger(__name__)
 dir_path = os.path.dirname(os.path.realpath(__file__))
+r_server = redis.StrictRedis('localhost')
 
 # move to a tool?
 def process_command_line(argv):
@@ -260,6 +262,7 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
                 # blur
                 height, width, _ = bgr_img.shape
                 blur_rois=[]                
+                self.whitelist=r_server.lrange('whitelist',0,-1)
                 for faceROI in faceFrame.faceROIs:
                     name = faceROI.name
                     if name in self.whitelist:
