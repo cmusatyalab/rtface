@@ -207,7 +207,7 @@ class FaceTransformation(object):
                     else:
                         # nothing detected simple way to remove all trackers
                         no_detection+=1
-                        if no_detection % 10 == 0:
+                        if no_detection % 5 == 0:
                             self.faces_lock.acquire()                                        
                             self.faces = []
                             self.faces_lock.release()
