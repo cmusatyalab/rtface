@@ -203,19 +203,19 @@ if __name__ == "__main__":
                dlib.rectangle(45,6,81,42)]
 
     # ============== pipe test=========================
-    pipe_test()
+    # pipe_test()
     
     # ============== sequential test=========================
-    # trackers=[dlib.correlation_tracker()]
-    # for idx, tracker in enumerate(trackers):
-    #     tracker.start_track(imgs[0], init_bxes[idx])
+    trackers=[dlib.correlation_tracker() for i in range(3)]
+    for idx, tracker in enumerate(trackers):
+        tracker.start_track(imgs[0], init_bxes[idx])
 
-    # for img in imgs[1:]:
-    #     s=time.time()        
-    #     for idx, tracker in enumerate(trackers):
-    #         tracker.update(img)
-    #         print tracker.get_position()
-    #     print 'tracking time: {:0.3f}'.format((time.time()-s))
+    for img in imgs[1:20]:
+        s=time.time()        
+        for idx, tracker in enumerate(trackers):
+            tracker.update(img)
+            print tracker.get_position()
+        print 'tracking time: {:0.3f}'.format((time.time()-s))
 
     # ================ obsoltete ======================
     #     start=time.time()
