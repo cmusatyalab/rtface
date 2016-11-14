@@ -93,6 +93,12 @@ net = openface.TorchNeuralNet(args.networkModel, imgDim=args.imgDim,
 
 r_server = redis.StrictRedis('localhost')
 
+USE_BEACON=False
+if USE_BEACON:
+    people_key_word='people'
+else:
+    people_key_word='trained_people'
+
 class Face:
 
     def __init__(self, rep, identity):
@@ -456,7 +462,7 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
 
         if int(r_server.get('update')) == 1:
             # peopel is current people
-            people_redis=r_server.lrange('people', 0, -1)
+            people_redis=r_server.lrange(people_key_word, 0, -1)
             print('training from redis: {}'.format(people_redis))
             people=map(str, people_redis)
             idx=0
