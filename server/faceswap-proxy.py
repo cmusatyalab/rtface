@@ -18,6 +18,10 @@
 #   limitations under the License.
 #
 
+import os
+# must be called before dlib is set
+os.environ["OMP_NUM_THREADS"] = "1"
+
 import time
 import Queue
 import struct

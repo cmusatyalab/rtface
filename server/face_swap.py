@@ -34,7 +34,6 @@ DETECT_TRACK_RATIO = 10
 PROFILE_FACE = 'profile_face'
 # use a moving average here?
 TRACKER_CONFIDENCE_THRESHOLD=2
-
 FrameTuple=namedtuple('FrameTuple', ['frame','fid'])
 
 class RecognitionRequestUpdate(object):
@@ -113,32 +112,55 @@ class FaceTransformation(object):
 
     def on_recv_detection_update(self, tracker_updates, old_faces):
         # remove low confidence trackers
-        old_faces=[face for face in old_faces if not face.low_confidence]
-        faces = tracker_updates['faces']
-        new_faces=[]        
-        LOG.debug('bg-thread received detection # {} faces'.format(len(faces)))
+        old_faces=[old_face for old_face in old_faces if not old_face.low_confidence]
+        detected_faces = tracker_updates['faces']
+        LOG.debug('bg-thread received detection # {} faces'.format(len(detected_faces)))
         (tracker_frame, fid) = tracker_updates['frame']
-        matched_old_faces_indices=[]
-        for face in faces:
-            matched=False
-            for faid, old_face in enumerate(old_faces):
-                if iou_area(face.roi, old_face.roi) > 0.5:
-                    old_face.tracker.start_track(tracker_frame, tuple_to_drectangle(face.roi))
-                    LOG.debug('bg-thread find match frid {} --> frid {}'.format(old_face.frid, face.frid))
-                    old_face.frid=face.frid
-                    matched=True
-                    new_faces.append(old_face)
-                    matched_old_faces_indices.append(faid)
-                    break
-            if not matched:
-                LOG.debug('bg-thread no match new frid {}'.format(face.frid))
-                face.name=None
-                tracker = create_tracker(tracker_frame, face.roi, use_dlib=Config.DLIB_TRACKING)
-                face.tracker = tracker
-                new_faces.append(face)
+        # current tracking faces
+        tracking_faces=[]
+        # newly added tracking faces (need backward tracking)
+        new_tracking_faces=[]
+        for detected_face in detected_faces:
+            overlaps=[iou_area(detected_face.roi, old_face.roi) for old_face in old_faces]
+            max_overlaps=0.0
+            if len(overlaps) > 0:
+                max_overlaps=max(overlaps)
+            if max_overlaps > 0.5:
+                # matched
+                max_overlaps_idx = overlaps.index(max_overlaps)
+                old_face = old_faces[max_overlaps_idx]
+                old_face.tracker.start_track(tracker_frame, tuple_to_drectangle(detected_face.roi))
+                LOG.debug('bg-thread find match frid {} --> frid {}'.format(old_face.frid, detected_face.frid))
+                old_face.frid=detected_face.frid
+                tracking_faces.append(old_face)
+            else:
+                # not matched
+                LOG.debug('bg-thread no match new frid {}'.format(detected_face.frid))
+                new_tracking_faces.append(detected_face)
+                detected_face.name=None
+                tracker = create_tracker(tracker_frame, detected_face.roi, use_dlib=Config.DLIB_TRACKING)
+                detected_face.tracker = tracker
+                tracking_faces.append(detected_face)
+        return fid, tracking_faces, new_tracking_faces
+
+            # matched=False
+            # for faid, old_face in enumerate(old_faces):
+            #     if iou_area(detected_face.roi, old_face.roi) > 0.5:
+            #         old_face.tracker.start_track(tracker_frame, tuple_to_drectangle(detected_face.roi))
+            #         LOG.debug('bg-thread find match frid {} --> frid {}'.format(old_face.frid, detected_face.frid))
+            #         old_face.frid=detected_face.frid
+            #         matched=True
+            #         new_faces.append(old_face)
+            #         break
+            # if not matched:
+            #     LOG.debug('bg-thread no match new frid {}'.format(detected_face.frid))
+            #     detected_face.name=None
+            #     tracker = create_tracker(tracker_frame, detected_face.roi, use_dlib=Config.DLIB_TRACKING)
+            #     detected_face.tracker = tracker
+            #     new_faces.append(detected_face)
         # do not remove the tracker if the confidence is still high
 #        new_faces.extend([face for idx, face in enumerate(old_faces) if idx not in matched_old_faces_indices])
-        return fid, new_faces
+
             
             # nearest_face = self.find_nearest_face(face, self.faces)
             # if (nearest_face):
@@ -198,11 +220,11 @@ class FaceTransformation(object):
                     if tracker_updates['frame'] != None:
                         no_detection=0
                         old_faces=self.faces[::]
-                        fid, faces=self.on_recv_detection_update(tracker_updates, old_faces)
+                        fid, tracking_faces, new_tracking_faces=self.on_recv_detection_update(tracker_updates, old_faces)
                         self.faces_lock.acquire()                                        
-                        self.faces = faces
+                        self.faces = tracking_faces
                         self.faces_lock.release()
-                        self.framebuffer.update_bx(fid, faces)
+                        self.framebuffer.update_bx(fid, new_tracking_faces)
                         LOG.debug('bg-thread updated self.faces # {} faces'.format(len(self.faces)))
                     else:
                         # nothing detected simple way to remove all trackers
@@ -444,7 +466,9 @@ class FaceTransformation(object):
                 else:
                     # dlib
                     guess = tracker.get_position()
+                    s=time.time()
                     conf=tracker.update(rgb_img, tracker.get_position())
+#                    LOG.info('pid: {} tracker took {:0.3f}'.format(os.getpid(), time.time() - s))
                     if face.name != PROFILE_FACE and conf < TRACKER_CONFIDENCE_THRESHOLD:
                         LOG.debug('frontal tracker conf too low {}'.format(conf))
                         face.low_confidence=True

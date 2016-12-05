@@ -2,9 +2,8 @@
 import sys
 import os
 import dlib
+import time
 from skimage import io
-import numpy as np
-import pickle
 from multiprocessing import Process, Queue, Pipe
 
 class concurrentManager(object):
@@ -61,8 +60,8 @@ class PipeProcessor(Process):
         return "Process idx=%s" % (self.idx)
 
     def run(self):
-        os.environ["OMP_NUM_THREADS"] = "1"        
-        tracker=dlib.correlation_tracker()        
+        os.environ["OMP_NUM_THREADS"] = "1"
+        tracker=dlib.correlation_tracker()
         while True:
             updates=self.input_p.recv()
             ret=None
@@ -70,19 +69,99 @@ class PipeProcessor(Process):
                 (img, init_bx)=updates[1]
                 tracker.start_track(img, init_bx)
                 ret = 'success'
-                print 'c_worker process created: {}'.format(self.idx)  
+                print 'c_worker process created: {}'.format(self.idx)
             elif updates[0] == 'track':
                 img=updates[1]
-                s=time.time()                
+                s=time.time()
                 tracker.update(img)
 #                print 'tracking time: {:0.3f}'.format((time.time()-s))
                 ret = tracker.get_position()
             elif updates[0] == 'kill':
                 print 'c_worker process killed: {}'.format(self.idx)
                 break
-            self.output_p.send((self.idx, ret))                
+            self.output_p.send((self.idx, ret))
 #                print '{}: tracker position: {} time {:0.3f}'.format(self.idx, ret, time.time())
-            
+
+class TrackerWorkerManager(object):
+    def __init__(self):
+        super(self.__class__, self).__init__()
+        self.workers=[]
+
+    def add(self, worker):
+        self.clean()
+        if worker not in self.workers:
+            self.workers.append(worker)
+            worker.start()
+
+    def clean(self):
+        for worker in self.workers:
+            if not worker.is_alive():
+                worker.clean()
+        self.workers=[worker for worker in self.workers if worker.is_alive()]
+
+    def get(self):
+        updates=[]
+        worker_snapshot=list(self.workers)
+        for worker in worker_snapshot:
+            while worker.master_op.poll():
+                updates.append(worker.master_op.recv())
+        return updates
+
+class TrackWorker(Process):
+    idx=0
+    def __init__(self, init_img, init_bx, track_itms, bxid):
+        super(self.__class__, self).__init__()
+        self.master_ip, self.worker_ip=Pipe()
+        self.master_op, self.worker_op=Pipe()
+        self.idx = type(self).idx
+        type(self).idx+=1
+        self.init_img=init_img
+        self.init_bx=init_bx
+        self.track_itms=track_itms
+        self.bxid=bxid
+        assert(init_img is not None)
+        assert(init_bx is not None)
+        assert(track_itms is not None)
+        print 'trackWorker {}, init pid: {}'.format(self.idx, os.getpid())
+
+    def __str__(self):
+        return "{} idx={} bxid:{}".format(self.__class__, self.idx, self.bxid)
+
+    def __repr__(self):
+        return "{} idx=%s bxid:{}".format(self.__class__, self.idx, self.bxid)
+
+    @staticmethod
+    def init_tracker(tracker, img, init_bx):
+        tracker.start_track(img, init_bx)
+
+    def run(self):
+        st=time.time()
+        print 'trackWorker {} starts running, pid: {}'.format(self.idx, os.getpid())
+        os.environ["OMP_NUM_THREADS"] = "1"
+        tracker=dlib.correlation_tracker()
+        self.init_tracker(tracker, self.init_img, self.init_bx)
+        print 'trackWorker {} inited at {} took: {}'.format(self.idx, self.init_bx, time.time()-st)
+        bx=self.init_bx
+        while len(self.track_itms) > 0:
+            itm=self.track_itms.pop(0)
+            img=itm.frame
+            s=time.time()
+            tracker.update(img, bx)
+            print 'pid: {} tracking time: {:0.3f}'.format(os.getpid(), time.time()-s)
+            bx = tracker.get_position()
+            if itm.has_bx(bx):
+                print '{} stopped revalidation due to duplicate bx'.format(self.idx)
+                break
+            self.worker_op.send((itm.fid, bx, self.bxid))
+        print 'trackWorker {} took {}'.format(self.idx, time.time()-st)
+
+    def clean(self):
+        self.worker_ip.close()
+        self.worker_op.close()
+        self.master_ip.close()
+        self.master_op.close()
+        print 'trackWorker {} cleaned'.format(self.idx)
+
 ## Create a list to hold running Processor objects
 if __name__ == "__main__":
     import dlibutils

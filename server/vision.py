@@ -273,6 +273,12 @@ class FaceFrame(object):
     def __str__(self):
         return '{}: {}'.format(self.fid, self.faceROIs)
 
+    def has_bx(self, bx):
+        for faceROI in self.faceROIs:
+            if iou_area(faceROI.roi, bx) > 0.5:
+                return True
+        return False
+
 def enlarge_roi(roi, padding, frame_width, frame_height):
     (x1, y1, x2, y2) = roi
     x1=max(x1-padding,0)
