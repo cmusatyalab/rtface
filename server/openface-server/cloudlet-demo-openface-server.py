@@ -51,6 +51,7 @@ from NetworkProtocol import *
 from threading import Lock
 import openface
 from demo_config import Config
+os.environ["OMP_NUM_THREADS"] = "2"
 
 DEBUG = False
 STORE_IMG_DEBUG = False

@@ -1,4 +1,6 @@
 #! /usr/bin/env python
+from collections import defaultdict
+
 import dlib
 from vision import *
 from MyUtils import *
@@ -6,6 +8,7 @@ import threading
 from multiprocessing import Process, Manager
 from camShift import *
 from demo_config import Config
+from concurrent_track import TrackWorker, TrackerWorkerManager
 
 REVALIDATION_CONF_THRESHOLD=0.8
 
@@ -31,15 +34,28 @@ class FaceFrameBuffer(FrameBuffer):
         super(self.__class__, self).__init__(*args, **kwargs)
         self.cur_faces=[]
         self.lock=threading.Lock()
+        self.track_man=TrackerWorkerManager()
+
+    def update(self):
+        updates=self.track_man.get()
+        updates_dict=defaultdict(list)
+        for (fid, bx, bxid) in updates:
+            updates_dict[fid].append((bx,bxid))
+        for itm in reversed(self.buf):
+            if len(updates_dict[itm.fid]) > 0:
+                for (bx, bxid) in updates_dict[itm.fid]:
+                    itm.faceROIs.append(FaceROI(bx, frid=bxid, name=None))
 
     def push_faceframe(self,itm):
+        self.update()
         self.lock.acquire()
         self.cur_faces=[froi.name for froi in itm.faceROIs]
         ret=self.push(itm)
         self.lock.release()        
+        return ret
         # LOG.debug('items in framebuffer {}'.format(self.buf))
         # LOG.debug('framebuffer cur_faces: {}'.format(self.cur_faces))   
-        return ret
+
 
     # def need_revalidate(self, itm):
     #     if len(itm.faceROIs) > len(self.cur_faces):
@@ -111,66 +127,63 @@ class FaceFrameBuffer(FrameBuffer):
     #         froi = FaceROI(drectangle_to_tuple(bx), frid=bxid)
     #         prev_itm.faceROIs.append(froi)
 
-    def has_bx(self, item, bx):
-        assert(item != None)
-        for faceROI in item.faceROIs:
-            if iou_area(faceROI.roi, bx) > 0.5:
-                return True
-        return False
-
     @timeit
     def revalidate(self, items, bx, bxid, tracker):
         # track frames coming in earlier:
-        for item in items:
-            LOG.debug('revalidate fid:{}'.format(item.fid))
-            if item!=None and item.frame!=None:
+        for itm in items:
+            LOG.debug('revalidate fid:{}'.format(itm.fid))
+            if itm!=None and itm.frame!=None:
                 if isinstance(tracker, meanshiftTracker) or isinstance(tracker, camshiftTracker):
-                    tracker.update(item.frame, bx)
+                    tracker.update(itm.frame, bx)
                 elif isinstance(tracker, dlib.correlation_tracker):
-                    conf=tracker.update(item.frame, bx)
+                    conf=tracker.update(itm.frame, bx)
                     if conf < REVALIDATION_CONF_THRESHOLD:
                         break
                 else:
                     raise TypeError("unknown tracker type")
                 bx=tracker.get_position()
-                if self.has_bx(item, bx):
+                if itm.has_bx(bx):
                     LOG.debug('stopped revalidation due to duplicate bx')
                     break
 #                froi = FaceROI(bx, frid=bxid, name=self.cur_faces[0])
                 froi = FaceROI(bx, frid=bxid, name=None)
-                item.faceROIs.append(froi)
-            
-    def update_bx(self, fid, faces):
+                itm.faceROIs.append(froi)
 
-        if self.need_revalidate(fid, faces):
-            LOG.debug('bg-thread need for revalidation')
-            # update exact frame first
-            for face in faces:
+    def snapshot(self):
+        # race condition !!! take a snapshot of current buf
+        self.lock.acquire()
+        buf_snapshot=self.buf[::]
+        self.lock.release()
+        return buf_snapshot
+
+    def update_bx(self, fid, backprop_faces):
+        if self.need_revalidate(fid, backprop_faces):
+            LOG.debug('bg-thread frq updating bx')
+            buf_snapshot=self.snapshot()
+            mf_idx=self.get_itm_idx_by_fid(fid, buf_snapshot)
+            for face in backprop_faces:
                 bx=face.roi
                 bxid=face.frid
-                # race condition !!!
-                self.lock.acquire()
-                buf_snapshot=self.buf[::]
-                self.lock.release()                
-                mf_idx=self.get_itm_idx_by_fid(fid, buf_snapshot)
-                prev_itms=[]
-                lat_itms=[]
                 if mf_idx > -1 and mf_idx < len(buf_snapshot):
                     mf=self.buf[mf_idx]
-                    if not self.has_bx(mf, bx):
+                    if not mf.has_bx(bx):
+                        # update exact frame first
                         mf.faceROIs.append(FaceROI(bx, frid=bxid))
                         LOG.debug('fid:{} --> mf_idx:{}'.format(fid,mf_idx))
-                        prev_itms=self.buf[mf_idx+1:]
-                        lat_itms=self.buf[:mf_idx]
-                        lat_itms=lat_itms[::-1]                    
-                        # make sure we can track with increasing index
+                        # split array for tracking
+                        prev_itms=buf_snapshot[mf_idx+1:]
+                        lat_itms=list(reversed(buf_snapshot[:mf_idx]))
                         dbx=tuple_to_drectangle(bx)
-                        tracker=create_tracker(mf.frame, dbx, use_dlib=Config.DLIB_TRACKING)
-        #                tracker=create_tracker(mf.frame, dbx, use_dlib=False)                
-                        self.revalidate(prev_itms, dbx, bxid, tracker)
-                        tracker.start_track(mf.frame,dbx)
-                        self.revalidate(lat_itms, dbx, bxid, tracker)
+                        twp =TrackWorker(mf.frame, dbx, prev_itms, bxid)
+                        self.track_man.add(twp)
+                        twl =TrackWorker(mf.frame, dbx, lat_itms, bxid)
+                        self.track_man.add(twl)
                         self.cur_faces=[froi.name for froi in self.buf[0].faceROIs]
+
+                        # tracker=create_tracker(mf.frame, dbx, use_dlib=Config.DLIB_TRACKING)
+                        # self.revalidate(prev_itms, dbx, bxid, tracker)
+                        # tracker.start_track(mf.frame,dbx)
+                        # self.revalidate(lat_itms, dbx, bxid, tracker)
             LOG.debug('bg-thread revalidation finished')
         else:
             LOG.debug('bg-thread no need for revalidation')
