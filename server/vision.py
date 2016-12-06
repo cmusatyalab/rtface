@@ -218,6 +218,10 @@ def is_clear(bgr_img, threshold=40):
     
 
 class FaceROI(object):
+    PROFILE_FACE = 'profile_face'
+    # dlib arbitrary number
+    TRACKER_CONFIDENCE_THRESHOLD=2
+
     def __init__(self, roi, data=None, name=None, tracker=None, frid=-1):
         self.roi = drectangle_to_tuple(roi)
         self.data = data
@@ -259,7 +263,11 @@ class FaceROI(object):
 
     def __repr__(self):
         return 'frid {}: {}, {}'.format(self.frid, self.roi, self.name)
-        
+
+    def update_tracker_failure(self, conf):
+        self.low_confidence=(self.name != self.PROFILE_FACE and conf < self.TRACKER_CONFIDENCE_THRESHOLD)
+        return self.low_confidence
+
 class FaceFrame(object):
     def __init__(self, fid, frame, faceROIs):
         # frame id

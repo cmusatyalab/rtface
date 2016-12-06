@@ -1,5 +1,8 @@
 #!/usr/bin/python
 import sys
+
+import cv2
+
 sys.path.append('..')
 import os
 import glob
@@ -189,33 +192,33 @@ def concurrent_tracker_update(img):
 ## Create a list to hold running Processor objects
 processes = list()
 if __name__ == "__main__":
-    video_folder='yt/imgs/1780_01_007_sylvester_stallone.avi'
-    dets_path_prefix='yt/dets_1'
-    video_name = get_yt_vid_name(video_folder)        
-    img_paths = get_img_paths(video_folder, 0)
-    imgs=[]
-    for img_path in img_paths:
-        img=io.imread(img_path)
-        imgs.append(img)
-
-    init_bxes=[dlib.rectangle(95,46,170,121),
-               dlib.rectangle(194,21,237,65),
-               dlib.rectangle(45,6,81,42)]
-
+    # video_folder='yt/imgs/1780_01_007_sylvester_stallone.avi'
+    # dets_path_prefix='yt/dets_1'
+    # video_name = get_yt_vid_name(video_folder)
+    # img_paths = get_img_paths(video_folder, 0)
+    # imgs=[]
+    # for img_path in img_paths:
+    #     img=io.imread(img_path)
+    #     imgs.append(img)
+    #
+    # init_bxes=[dlib.rectangle(95,46,170,121),
+    #            dlib.rectangle(194,21,237,65),
+    #            dlib.rectangle(45,6,81,42)]
+    #
     # ============== pipe test=========================
     # pipe_test()
     
     # ============== sequential test=========================
-    trackers=[dlib.correlation_tracker() for i in range(3)]
-    for idx, tracker in enumerate(trackers):
-        tracker.start_track(imgs[0], init_bxes[idx])
-
-    for img in imgs[1:20]:
-        s=time.time()        
-        for idx, tracker in enumerate(trackers):
-            tracker.update(img)
-            print tracker.get_position()
-        print 'tracking time: {:0.3f}'.format((time.time()-s))
+    # trackers=[dlib.correlation_tracker() for i in range(3)]
+    # for idx, tracker in enumerate(trackers):
+    #     tracker.start_track(imgs[0], init_bxes[idx])
+    #
+    # for img in imgs[1:20]:
+    #     s=time.time()
+    #     for idx, tracker in enumerate(trackers):
+    #         tracker.update(img)
+    #         print tracker.get_position()
+    #     print 'tracking time: {:0.3f}'.format((time.time()-s))
 
     # ================ obsoltete ======================
     #     start=time.time()
@@ -242,3 +245,25 @@ if __name__ == "__main__":
     #     ## NOTE: You cannot depend on the results to queue / dequeue in the
     #     ## same order
     #     print "RESULT: %s" % q.get()
+
+
+    video_folder='../test_images/debug'
+    img_paths = get_img_paths(video_folder, -1,end_idx=436)
+    imgs=[]
+    print imgs
+    for img_path in img_paths:
+        img=io.imread(img_path)
+        imgs.append(img)
+    init_bx=dlib.rectangle(230, 182, 445, 397)
+    tracker=dlib.correlation_tracker()
+    tracker.start_track(imgs[0], init_bx)
+    idx=1
+    for img in imgs[1:]:
+        s=time.time()
+        tracker.update(img)
+        pos=tracker.get_position()
+        roi=drectangle_to_tuple(pos)
+        cv2.rectangle(img, (roi[0], roi[1]), (roi[2], roi[3]), (255,0,0), thickness=3)
+        io.imsave('output/{}.jpg'.format(idx), img)
+        idx+=1
+        print 'tracking time: {:0.3f}'.format((time.time()-s))
