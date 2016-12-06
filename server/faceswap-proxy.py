@@ -264,11 +264,11 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
                 # blur
                 height, width, _ = bgr_img.shape
                 blur_rois=[]                
-                print('roi: {}'.format(faceFrame.faceROIs))
                 for faceROI in faceFrame.faceROIs:
                     name = faceROI.name
                     if name in self.whitelist:
-                        print('whitelisting roi {}'.format(faceROI))
+#                        print('whitelisting roi {}'.format(faceROI))
+                       pass
                     else:
                         faceROI.roi=clamp_roi(faceROI.roi, width, height)
                         (x1, y1, x2, y2) = enlarge_roi( faceROI.roi, 10, width, height)
