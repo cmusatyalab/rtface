@@ -197,6 +197,7 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
             interval = cur_timestamp - self.prev_timestamp
             sys.stdout.write("packet interval: %d\n header: %s\n"%(interval, header))
             start = time.time()
+
         header_dict = header
 
         if 'reset' in header_dict:
@@ -234,8 +235,8 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
         np_data=np.fromstring(data, dtype=np.uint8)
         bgr_img=cv2.imdecode(np_data,cv2.IMREAD_COLOR)
         rgb_img=cv2.cvtColor(bgr_img, cv2.COLOR_BGR2RGB)        
-        retval = np_data.tostring()
-        
+#        print("prep tooks {:0.3f}".format((time.time()-start)*1000))
+
         if training:
             cnt, face_json = self.transformer.train(rgb_img, name)
             header_dict['type']=AppDataProtocol.TYPE_train
@@ -243,22 +244,27 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
             header_dict['faceROI_jsons']=[]            
             if face_json is not None:
                 header_dict['faceROI_jsons']=[face_json]
+            retval = np_data.tostring()
         else:
             # swap faces
+            st=time.time()
             faceFrame, snippets = self.transformer.swap_face(rgb_img, bgr_img)
+#            print("swap_face tooks {:0.3f}".format((time.time()-st)*1000))
             header_dict['type']=AppDataProtocol.TYPE_detect
-#            header_dict['faceROI_jsons']=snippets
             header_dict['faceROI_jsons']=[]
             if faceFrame==None:
                 retval='dummy'+str(time.time())
             else:
                 # need to return img, encode the image into jpeg!!
                 rgb_img=faceFrame.frame
+                st=time.time()
                 bgr_img=cv2.cvtColor(rgb_img, cv2.COLOR_RGB2BGR)
-                
+#                print("cvtcolor tooks {:0.3f}".format((time.time()-st)*1000))
+
                 # blur
                 height, width, _ = bgr_img.shape
                 blur_rois=[]                
+                print('roi: {}'.format(faceFrame.faceROIs))
                 for faceROI in faceFrame.faceROIs:
                     name = faceROI.name
                     if name in self.whitelist:
@@ -268,23 +274,26 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
                         (x1, y1, x2, y2) = enlarge_roi( faceROI.roi, 10, width, height)
                         blur_rois.append( (x1, y1, x2, y2) )
 
+                st=time.time()
                 for roi in blur_rois:
                     (x1, y1, x2, y2)=roi
-#                    print('denaturing roi {}'.format((x1, y1, x2, y2)))
-                    bgr_img[y1:y2+1, x1:x2+1]=np.resize(np.array([0]), (y2+1-y1, x2+1-x1,3))
-                
+                    bgr_img[y1:y2+1, x1:x2+1]=np.zeros((y2+1-y1, x2+1-x1,3))
+#                print("denaturing tooks {:0.3f}".format((time.time()-st)*1000))
+
+                st=time.time()
                 _, retval=cv2.imencode('.jpg', bgr_img)
-                fname='{}'.format(time.strftime("%Y-%m-%d-%H-%M-%S.jpg"))
-                fpath=os.path.join(Config.PERSIST_DENATURED_IMAGE_OUTPUT_PATH, fname)
-                with open(fpath, 'w+') as f:
-                    f.write(retval)
+#                print("imencode tooks {:0.3f}".format((time.time()-st)*1000))
+
+                # fname='{}'.format(time.strftime("%Y-%m-%d-%H-%M-%S.jpg"))
+                # fpath=os.path.join(Config.PERSIST_DENATURED_IMAGE_OUTPUT_PATH, fname)
+                # with open(fpath, 'w+') as f:
+                #     f.write(retval)
                 retval=retval.tostring()
 
         if Config.DEBUG:
+            self.prev_timestamp = time.time()*1000
             end = time.time()
             print('total processing time: {}'.format((end-start)*1000))
-            self.prev_timestamp = time.time()*1000
-
         self.transformer.tracking_thread_idle_event.set()
 
         # TODO: hacky way to wait detector to finish...

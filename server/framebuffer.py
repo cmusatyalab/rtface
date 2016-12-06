@@ -8,7 +8,8 @@ import threading
 from multiprocessing import Process, Manager
 from camShift import *
 from demo_config import Config
-from concurrent_track import TrackWorker, TrackerWorkerManager
+from concurrent_track import BatchTrackWorker, TrackerWorkerManager
+from collections import OrderedDict
 
 REVALIDATION_CONF_THRESHOLD=0.8
 
@@ -35,7 +36,9 @@ class FaceFrameBuffer(FrameBuffer):
         self.cur_faces=[]
         self.lock=threading.Lock()
         self.track_man=TrackerWorkerManager()
+        self.bxid_lookup_table=OrderedDict()
 
+    @timeit
     def update(self):
         updates=self.track_man.get()
         updates_dict=defaultdict(list)
@@ -44,14 +47,27 @@ class FaceFrameBuffer(FrameBuffer):
         for itm in reversed(self.buf):
             if len(updates_dict[itm.fid]) > 0:
                 for (bx, bxid) in updates_dict[itm.fid]:
-                    itm.faceROIs.append(FaceROI(bx, frid=bxid, name=None))
+                    # need to update names as well
+                    name=None
+                    if bxid in self.bxid_lookup_table:
+                        name=self.bxid_lookup_table[bxid]
+                    itm.faceROIs.append(FaceROI(bx, frid=bxid, name=name))
 
+    # TODO: tmp fix, should do this in face_swap
+    def fix_name(self, itm):
+        if itm is not None:
+            for faceROI in itm.faceROIs:
+                if faceROI.frid in self.bxid_lookup_table:
+                    faceROI.name=self.bxid_lookup_table[faceROI.frid]
+
+    @timeit
     def push_faceframe(self,itm):
         self.update()
         self.lock.acquire()
         self.cur_faces=[froi.name for froi in itm.faceROIs]
         ret=self.push(itm)
         self.lock.release()        
+        self.fix_name(ret)
         return ret
         # LOG.debug('items in framebuffer {}'.format(self.buf))
         # LOG.debug('framebuffer cur_faces: {}'.format(self.cur_faces))   
@@ -76,7 +92,7 @@ class FaceFrameBuffer(FrameBuffer):
         #         return False
         # else:
         #     return False
-        return True
+        return len(faceROIs) > 0
             
             
     # def revalidate_frame(self, trackers, faceframe):
@@ -174,37 +190,43 @@ class FaceFrameBuffer(FrameBuffer):
                         prev_itms=buf_snapshot[mf_idx+1:]
                         lat_itms=list(reversed(buf_snapshot[:mf_idx]))
                         dbx=tuple_to_drectangle(bx)
-                        twp =TrackWorker(mf.frame, dbx, prev_itms, bxid)
-                        self.track_man.add(twp)
-                        twl =TrackWorker(mf.frame, dbx, lat_itms, bxid)
-                        self.track_man.add(twl)
+                        if len(prev_itms) > 0:
+                            twp =BatchTrackWorker(mf.frame, dbx, prev_itms, bxid)
+                            self.track_man.add(twp)
+                        if len(lat_itms) > 0:
+                            twl =BatchTrackWorker(mf.frame, dbx, lat_itms, bxid)
+                            self.track_man.add(twl)
                         self.cur_faces=[froi.name for froi in self.buf[0].faceROIs]
 
                         # tracker=create_tracker(mf.frame, dbx, use_dlib=Config.DLIB_TRACKING)
                         # self.revalidate(prev_itms, dbx, bxid, tracker)
                         # tracker.start_track(mf.frame,dbx)
                         # self.revalidate(lat_itms, dbx, bxid, tracker)
-            LOG.debug('bg-thread revalidation finished')
+            LOG.debug('bg-thread revalidation issued')
         else:
             LOG.debug('bg-thread no need for revalidation')
 
             
     def update_name(self, bxid, identity):
-        self.lock.acquire()                        
+        self.bxid_lookup_table[bxid] = identity
+        if len(self.bxid_lookup_table) > 100:
+            self.bxid_lookup_table.popitem()
+
+        self.lock.acquire()
         itms=self.buf[::-1]
 #        itms=self.buf[::]
-        LOG.debug('bg-thread update name called. current item: {}'.format(itms))
+        LOG.debug('bg-thread update name called. bxid {} identity {} current item: {}'.format(bxid, identity, itms))
         for itm in itms:
             for froi in itm.faceROIs:
+                if froi.frid == bxid:
+                    froi.name=identity
+        self.lock.release()
 #                prev_crit = (froi.frid < bxid) and (froi.name==None)
 #                post_crit=  (froi.frid > bxid) and (froi.frid <= bxid+2) and (froi.name==None)
 #                help_up_crit=prev_crit or post_crit
                 # if froi.frid == bxid or help_up_crit:
-                if froi.frid == bxid:
-                    froi.name=identity
 #                    LOG.debug('bg-thread updated fid: {} to name {}'.format(itm.fid, identity))
-        self.lock.release()                
-                    
+
     def flush(self):
         self.lock.acquire()        
         self.cur_faces=[]

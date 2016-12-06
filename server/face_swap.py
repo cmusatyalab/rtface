@@ -1,7 +1,8 @@
 #! /usr/bin/env python
 # in this file, the frames by default are rgb unless state otherwise by the variable name
-
+import concurrent_track
 from MyUtils import *
+from concurrent_track import AsyncTrackWorker
 from vision import *
 import Queue
 import StringIO
@@ -31,9 +32,6 @@ if Config.WRITE_PICTURE_DEBUG:
     create_dir(Config.WRITE_PICTURE_DEBUG_PATH)
     track_frame_id=0
 DETECT_TRACK_RATIO = 10
-PROFILE_FACE = 'profile_face'
-# use a moving average here?
-TRACKER_CONFIDENCE_THRESHOLD=2
 FrameTuple=namedtuple('FrameTuple', ['frame','fid'])
 
 class RecognitionRequestUpdate(object):
@@ -110,25 +108,28 @@ class FaceTransformation(object):
         self.frame_id=0
         self.framebuffer=FaceFrameBuffer(30)
 
+    def remove_failed_trackers(self, faces):
+        for face in faces:
+            face.tracker.clean()
+
     def on_recv_detection_update(self, tracker_updates, old_faces):
-        # remove low confidence trackers
-        old_faces=[old_face for old_face in old_faces if not old_face.low_confidence]
+        valid_prev_faces=[face for face in old_faces if not face.low_confidence]
         detected_faces = tracker_updates['faces']
         LOG.debug('bg-thread received detection # {} faces'.format(len(detected_faces)))
         (tracker_frame, fid) = tracker_updates['frame']
         # current tracking faces
         tracking_faces=[]
         # newly added tracking faces (need backward tracking)
-        new_tracking_faces=[]
+        revalidate_trigger_faces=[]
         for detected_face in detected_faces:
-            overlaps=[iou_area(detected_face.roi, old_face.roi) for old_face in old_faces]
+            overlaps=[iou_area(detected_face.roi, old_face.roi) for old_face in valid_prev_faces]
             max_overlaps=0.0
             if len(overlaps) > 0:
                 max_overlaps=max(overlaps)
-            if max_overlaps > 0.5:
+            if max_overlaps > 0.3:
                 # matched
                 max_overlaps_idx = overlaps.index(max_overlaps)
-                old_face = old_faces[max_overlaps_idx]
+                old_face = valid_prev_faces.pop(max_overlaps_idx)
                 old_face.tracker.start_track(tracker_frame, tuple_to_drectangle(detected_face.roi))
                 LOG.debug('bg-thread find match frid {} --> frid {}'.format(old_face.frid, detected_face.frid))
                 old_face.frid=detected_face.frid
@@ -136,12 +137,16 @@ class FaceTransformation(object):
             else:
                 # not matched
                 LOG.debug('bg-thread no match new frid {}'.format(detected_face.frid))
-                new_tracking_faces.append(detected_face)
+                revalidate_trigger_faces.append(detected_face)
                 detected_face.name=None
-                tracker = create_tracker(tracker_frame, detected_face.roi, use_dlib=Config.DLIB_TRACKING)
+#                tracker = create_tracker(tracker_frame, detected_face.roi, use_dlib=Config.DLIB_TRACKING)
+                tracker=AsyncTrackWorker()
+                tracker.start()
+                tracker.start_track(tracker_frame, tuple_to_drectangle(detected_face.roi))
                 detected_face.tracker = tracker
                 tracking_faces.append(detected_face)
-        return fid, tracking_faces, new_tracking_faces
+        self.remove_failed_trackers([face for face in old_faces if face not in tracking_faces])
+        return fid, tracking_faces, revalidate_trigger_faces
 
             # matched=False
             # for faid, old_face in enumerate(old_faces):
@@ -177,7 +182,7 @@ class FaceTransformation(object):
             if (recognition_resp['type'] == FaceRecognitionServerProtocol.TYPE_frame_resp
                 and recognition_resp['success']):
                 if (len(recognition_resp['name'])==0):
-                    LOG.debug('no face detected')
+                    LOG.debug('received reg info: unknown')
                     return
                 bxid = int(recognition_resp['id'])                
                 if (bxid in in_fly_recognition_info):
@@ -220,7 +225,8 @@ class FaceTransformation(object):
                     if tracker_updates['frame'] != None:
                         no_detection=0
                         old_faces=self.faces[::]
-                        fid, tracking_faces, new_tracking_faces=self.on_recv_detection_update(tracker_updates, old_faces)
+                        fid, tracking_faces, new_tracking_faces=self.on_recv_detection_update(tracker_updates,
+                                                                                              old_faces)
                         self.faces_lock.acquire()                                        
                         self.faces = tracking_faces
                         self.faces_lock.release()
@@ -262,7 +268,7 @@ class FaceTransformation(object):
         # find the closest face object
         for face in nearby_faces:
             # doesn't match profile faces
-            if face.name == PROFILE_FACE:
+            if face.name == FaceROI.PROFILE_FACE:
                 continue
                 
             face_center = face.get_location()
@@ -403,7 +409,10 @@ class FaceTransformation(object):
                 frame, fid = self.get_image_from_queue(img_queue)
                 if frame == None:
                     continue
-                rois = detect_faces(frame, detector, upsample_num_times=Config.DLIB_DETECTOR_UPSAMPLE_TIMES, adjust_threshold=Config.DLIB_DETECTOR_ADJUST_THRESHOLD)
+                rois = detect_faces(frame,
+                                    detector,
+                                    upsample_num_times=Config.DLIB_DETECTOR_UPSAMPLE_TIMES,
+                                    adjust_threshold=Config.DLIB_DETECTOR_ADJUST_THRESHOLD)
                 cur_bxids = [bxid+idx for idx, roi in enumerate(rois)]
                 faces=[]
                 if (len(rois)>0):
@@ -440,52 +449,43 @@ class FaceTransformation(object):
                 # if Config.WRITE_PICTURE_DEBUG:
                 #     draw_rois(frame,rois, hint="detect")
                 #     imwrite_rgb(self.pic_output_path(str(detection_frame_id)+'_detect'), frame)
-                    
+
+    def get_tracker_type(self, tracker):
+        return type(tracker)
+
     @timeit
     def track_faces(self, rgb_img, faces):
         LOG.debug('# faces tracking {} '.format(len(faces)))
-        to_be_removed_face = []
-        is_low_confidence=False
-        
-        # cvtColor is an expensive operation
-        # only convert frame to hsv frame once for meanshift or camshift
-        if not Config.DLIB_TRACKING:
-            hsv_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2HSV)
-            
         if (len(faces) == 0):
             # sleep for 10 ms
             time.sleep(0.005)
         else:
-            for idx, face in enumerate(faces):
-                tracker = face.tracker
-                if Config.DEBUG:
-                    start = time.time()
-                (x1,y1,x2,y2)=face.roi
-                if isinstance(tracker, meanshiftTracker) or isinstance(tracker, camshiftTracker):
-                    tracker.update(hsv_img, is_hsv=True)
-                else:
-                    # dlib
-                    guess = tracker.get_position()
-                    s=time.time()
-                    conf=tracker.update(rgb_img, tracker.get_position())
-#                    LOG.info('pid: {} tracker took {:0.3f}'.format(os.getpid(), time.time() - s))
-                    if face.name != PROFILE_FACE and conf < TRACKER_CONFIDENCE_THRESHOLD:
+            tracker_type = self.get_tracker_type(faces[0].tracker)
+            if tracker_type == meanshiftTracker or tracker_type == camshiftTracker:
+                hsv_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2HSV)
+                for face in faces:
+                    face.tracker.update(hsv_img, is_hsv=True)
+                    new_roi = face.tracker.get_position()
+                    face.roi = drectangle_to_tuple(new_roi)
+            elif tracker_type == dlib.correlation_tracker:
+                for face in faces:
+                    conf=face.tracker.update(rgb_img, face.tracker.get_position())
+                    new_roi = face.tracker.get_position()
+                    face.roi = drectangle_to_tuple(new_roi)
+                    if face.update_tracker_failure(conf):
                         LOG.debug('frontal tracker conf too low {}'.format(conf))
-                        face.low_confidence=True
-                        is_low_confidence=True
-                    
-                new_roi = tracker.get_position()
-
-                if Config.DEBUG:
-                    end = time.time()
-                    LOG.debug('tracker run: {}'.format((end-start)*1000))
-
-                (x1,y1,x2,y2) = (int(new_roi.left()),
-                              int(new_roi.top()),
-                              int(new_roi.right()),
-                              int(new_roi.bottom()))
-                face.roi = (x1,y1,x2,y2)
-        return is_low_confidence
+            elif tracker_type == concurrent_track.AsyncTrackWorker:
+                # async update all
+                for face in faces:
+                    face.tracker.update(rgb_img)
+                # get result
+                for face in faces:
+                    (conf, new_roi) = face.tracker.get_position()
+                    face.roi = drectangle_to_tuple(new_roi)
+                    if face.update_tracker_failure(conf):
+                        LOG.debug('frontal tracker conf too low {}'.format(conf))
+            else:
+                raise TypeError("unreconized tracker type: {}".format(tracker_type))
 
     def add_profile_faces_blur(self, bgr_img, blur_list):
         profile_faces=detect_profile_faces(bgr_img, flip=True)
@@ -536,22 +536,19 @@ class FaceTransformation(object):
 #        im = Image.fromarray(frame)
 #        im.save('/home/faceswap-admin/privacy-mediator/image/frame.jpg')
 
-        # if bgr_img == None:
-        #     bgr_img = cv2.cvtColor(rgb_img, cv2.COLOR_RGB2BGR)
-            
         if self.training:
             LOG.debug('main-process stopped openface training!')            
             self.training=False
             self.openface_client.setTraining(False)
 
         height, self.image_width, _=rgb_img.shape
-        LOG.debug('received image. {}x{}'.format(self.image_width, height))
+#        LOG.debug('received image. {}x{}'.format(self.image_width, height))
 
         # track existing faces
         self.faces_lock.acquire()
         faces=self.faces[::]
         self.faces_lock.release()        
-        tracker_fail =self.track_faces(rgb_img, faces)
+        self.track_faces(rgb_img, faces)
         
         face_snippets = []
         for face in self.faces:
@@ -561,7 +558,7 @@ class FaceTransformation(object):
             except ValueError:
                 pass
 
-        if self.frame_id % Config.DETECT_FRAME_INTERVAL == 0 or tracker_fail:
+        if self.frame_id % Config.DETECT_FRAME_INTERVAL == 0 or (True in [face.low_confidence for face in self.faces]):
             self.need_detection=True
 
         if self.need_detection:
@@ -572,7 +569,7 @@ class FaceTransformation(object):
             else:
                 LOG.debug('image {} too blurry. not running detection'.format(self.frame_id))
             
-        LOG.debug('# faces returned: {}'.format(len(self.faces)))
+#        LOG.debug('# faces returned: {}'.format(len(self.faces)))
 
         self.persist_image(rgb_img, face_snippets)
         output_img = rgb_img
