@@ -210,7 +210,7 @@ class FaceFrameBuffer(FrameBuffer):
     def update_name(self, bxid, identity):
         self.bxid_lookup_table[bxid] = identity
         if len(self.bxid_lookup_table) > 100:
-            self.bxid_lookup_table.popitem()
+            self.bxid_lookup_table.popitem(last=False)
 
         self.lock.acquire()
         itms=self.buf[::-1]

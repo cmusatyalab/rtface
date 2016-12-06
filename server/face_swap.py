@@ -109,8 +109,10 @@ class FaceTransformation(object):
         self.framebuffer=FaceFrameBuffer(30)
 
     def remove_failed_trackers(self, faces):
+        self.faces_lock.acquire()
         for face in faces:
             face.tracker.clean()
+        self.faces_lock.release()
 
     def on_recv_detection_update(self, tracker_updates, old_faces):
         valid_prev_faces=[face for face in old_faces if not face.low_confidence]
@@ -546,9 +548,10 @@ class FaceTransformation(object):
 
         # track existing faces
         self.faces_lock.acquire()
-        faces=self.faces[::]
-        self.faces_lock.release()        
-        self.track_faces(rgb_img, faces)
+#        faces=self.faces[::]
+        self.track_faces(rgb_img, self.faces)
+        self.faces_lock.release()
+
         
         face_snippets = []
         for face in self.faces:
@@ -604,7 +607,7 @@ class FaceTransformation(object):
             LOG.debug("No faces detected in training frame. abandon frame")
             return self.training_cnt, None
 
-        LOG.info("training-adding frame: detected 1 face")            
+#        LOG.info("training-adding frame: detected 1 face")
 
         if 1 == len(rois) :
             (x1,y1,x2,y2) = rois[0]
