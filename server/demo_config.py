@@ -28,7 +28,7 @@ class Config(object):
     DETECT_FRAME_INTERVAL=20
 
     # an arbitrary probability for cutting of openface recognition true/false
-    RECOG_PROB_THRESHOLD=0.7
+    RECOG_PROB_THRESHOLD=0.8
 
     ENCRYPT_DENATURED_REGION=False
     ENCRYPT_DENATURED_REGION_OUTPUT_PATH='encrypted'
