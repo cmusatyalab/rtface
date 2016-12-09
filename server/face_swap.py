@@ -109,10 +109,8 @@ class FaceTransformation(object):
         self.framebuffer=FaceFrameBuffer(30)
 
     def remove_failed_trackers(self, faces):
-        self.faces_lock.acquire()
         for face in faces:
             face.tracker.clean()
-        self.faces_lock.release()
 
     def on_recv_detection_update(self, tracker_updates, old_faces):
         valid_prev_faces=[face for face in old_faces if not face.low_confidence]
@@ -147,7 +145,6 @@ class FaceTransformation(object):
                 tracker.start_track(tracker_frame, tuple_to_drectangle(detected_face.roi))
                 detected_face.tracker = tracker
                 tracking_faces.append(detected_face)
-        self.remove_failed_trackers([face for face in old_faces if face not in tracking_faces])
         return fid, tracking_faces, revalidate_trigger_faces
 
             # matched=False
@@ -232,6 +229,7 @@ class FaceTransformation(object):
                         self.faces_lock.acquire()                                        
                         self.faces = tracking_faces
                         self.faces_lock.release()
+                        self.remove_failed_trackers([face for face in old_faces if face not in tracking_faces])
                         self.framebuffer.update_bx(fid, new_tracking_faces)
                         LOG.debug('bg-thread updated self.faces # {} faces'.format(len(self.faces)))
                     else:
