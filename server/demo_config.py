@@ -1,5 +1,7 @@
 #!/usr/bin/env python
+import os
 class Config(object):
+    GABRIEL_PATH=os.path.expanduser("~/dependency/gabriel/server")
     DEBUG=False
     WRITE_PICTURE_DEBUG=False
     WRITE_PICTURE_DEBUG_PATH='./debug_picture/'
