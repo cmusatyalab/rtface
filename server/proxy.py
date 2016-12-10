@@ -31,7 +31,7 @@ import pdb
 import multiprocessing
 from optparse import OptionParser
 import pprint
-from face_swap import FaceTransformation
+from rtface import FaceTransformation
 from PIL import Image, ImageOps
 import io, StringIO
 import numpy as np
@@ -42,14 +42,11 @@ from NetworkProtocol import *
 import cv2
 import Queue
 from demo_config import Config
-import zmq
-from time import sleep
 from vision import *
 from MyUtils import create_dir
 
-gabriel_path=os.path.expanduser("~/gabriel-v2/gabriel/server")
-if os.path.isdir(gabriel_path) is True:
-    sys.path.insert(0, gabriel_path)
+if os.path.isdir(Config.GABRIEL_PATH) is True:
+    sys.path.insert(0, Config.GABRIEL_PATH)
 
 import gabriel
 import gabriel.proxy
@@ -166,8 +163,6 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
         state_string=""
         if is_get_person:
             state_string = self.transformer.openface_client.getPeople()
-            with open('/home/faceswap-admin/openface-state.txt','w') as f:
-                f.write(state_string)
         else:
             sys.stdout.write('error: has get_person in header, but the value is false')
         header_dict['type']=AppDataProtocol.TYPE_get_person
@@ -318,9 +313,6 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
 
 if __name__ == "__main__":
     transformer = FaceTransformation()
-#    zmq_context = zmq.Context()
-#    zmq_socket=zmq_context.socket(zmq.PUSH)
-#    zmq_socket.bind("ipc:///tmp/gabriel-feed")
 
     settings, args = process_command_line(sys.argv[1:])
     ip_addr, port = gabriel.network.get_registry_server_address(settings.address)
@@ -365,7 +357,4 @@ if __name__ == "__main__":
             dummy_video_app.terminate()
         if transformer is not None:
             transformer.terminate()
-        if flask_process is not None and flask_process.is_alive():
-            flask_process.terminate()
-            flask_process.join()
         result_pub.terminate()

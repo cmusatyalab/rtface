@@ -79,7 +79,7 @@ class FaceTransformation(object):
         self.correct_tracking_event = multiprocessing.Event()
         self.correct_tracking_event.clear()
         
-        # controlled from faceswap-proxy.py
+        # controlled from proxy.py
         self.tracking_thread_idle_event = threading.Event()
         self.tracking_thread_idle_event.clear()
         self.sync_thread_stop_event=threading.Event()

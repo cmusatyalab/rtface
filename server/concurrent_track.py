@@ -3,7 +3,6 @@ import sys
 import os
 import dlib
 import time
-from skimage import io
 from multiprocessing import Process, Queue, Pipe
 from MyUtils import LOG
 import cv2
@@ -265,6 +264,7 @@ if __name__ == "__main__":
     from dlibutils import get_img_paths
     import multiprocessing
     import logging
+    from skimage import io
     mpl = multiprocessing.log_to_stderr()
     mpl.setLevel(logging.DEBUG)
 
