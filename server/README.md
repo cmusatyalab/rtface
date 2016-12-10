@@ -1,5 +1,5 @@
 #Overview
-RTFace, a framework that selectively blurs a person's face based on his identity in real-time to protect user's privacy.
+RTFace is a framework that selectively blurs a person's face based on his identity in real-time to protect user's privacy.
 It leverages object tracking to achieve real-time while running face detection using [dlib](http://dlib.net), and face recognition using [OpenFace](https://cmusatyalab.github.io/openface).
 
 #Server
