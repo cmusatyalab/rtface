@@ -297,6 +297,7 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
 
         # TODO: hacky way to wait detector to finish...
         # sleep(0.04)
+        r_server.publish('denatured_image', retval)
         return retval
             
         # using PIL approach to open a jpeg data
