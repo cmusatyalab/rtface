@@ -1,0 +1,43 @@
+from flask import Flask, render_template, Response
+import sys
+import gevent
+import gevent.monkey
+from gevent.pywsgi import WSGIServer
+import redis
+
+gevent.monkey.patch_all()
+
+sys.path.append('/usr/local/lib/python2.7/site-packages')
+r_server = redis.StrictRedis('localhost')
+sub=r_server.pubsub()
+sub.subscribe('denatured_image')
+
+app = Flask(__name__)
+
+#camera = VideoCamera()
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+def gen():
+    while True:
+        gevent.sleep(0.05)
+        msg=sub.get_message()
+        if msg:
+            if msg['type']=='message':
+                frame = msg['data']
+                yield(b'--frame\r\n'
+                        b'Content-Type: image/jpeg\r\n\r\n' + frame + b'\r\n\r\n')
+            else:
+                print 'received msg type: {}'.format(msg['type'])                
+
+@app.route('/video_feed')
+def video_feed():
+    print "video_feed"
+    return Response(gen(),
+                        mimetype='multipart/x-mixed-replace; boundary=frame')
+
+if __name__ == "__main__":
+    http_server = WSGIServer(('0.0.0.0', 10080), app)
+    http_server.serve_forever()

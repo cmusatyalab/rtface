@@ -1,0 +1,131 @@
+<!--
+Copyright 2015-2016 Carnegie Mellon University
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="google-signin-client_id" content="525869916388-6mavu2m8pio83vb5h2cnc40n2cj7o9pg.apps.googleusercontent.com">
+        <title>Face Recognition</title>
+        <link href="vendor/css/bootstrap.min.css" rel="stylesheet">
+        <link href="vendor/css/bootstrap-toggle.min.css" rel="stylesheet">
+        <link href="vendor/css/bootstrap-dialog.min.css" rel="stylesheet">
+        <link href="css/main.css" rel="stylesheet">
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <ul class='tabs'>
+                    <li class='tab-link' data-tab='tab-preview'
+                        id='tab-preview-button'>
+                        Preview
+                    </li>
+                    <li class='tab-link current' data-tab='tab-annotated'
+                        id='tab-annotated-button'>
+                        Annotated
+                    </li>
+                </ul>
+                <div id='tab-preview' class='tab-content'>
+                    <!-- <video id="videoel" width="400" height="300" -->
+                    <!--        preload="auto" loop></video> -->
+                    <video id="videoel" width="150" height="150"
+                           preload="auto" loop></video>
+                </div>
+                <div id='tab-annotated' class='tab-content current'>
+                    <div id="detectedFaces"></div>
+                </div>
+            </div>
+            
+
+            <div class="content">
+              {% if authorized %}
+                <h2>Training Count:
+                  <div id="tr_cnt">0</div>
+                </h2>
+                <h2>Training
+                    <input type="checkbox" checked data-toggle="toggle"
+                           id="trainingChk">
+                </h2>
+                <h2>Clear Training Examples
+                    <button id="clearChk">clear</button>
+                </h2>
+                <div class="addPersonDiv">
+                  <h2>UID: 
+                    <div id="uid">{{ uid }}</div>
+                  </h2>
+                  <a href="/logout" class="btn btn-default">Sign Out</a>
+                </div>
+            {% else %}
+                <h2>Please Log In to Train Faces</h2>
+                <a href="/login"><img src="/images/btn_google_signin_light_normal_web.png"</img></a>
+            {% endif %}
+            </div>
+
+        </div>
+    </body> 
+    <script src="vendor/js/jquery.min.js"></script>
+    <script src="vendor/js/bootstrap.min.js"></script>
+    <script src="vendor/js/bootstrap-toggle.min.js"></script>
+    <script src="vendor/js/bootstrap-dialog.min.js"></script>
+    <script src="vendor/js/handlebars.min.js"></script>
+    <script src="vendor/js/jstat.min.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/openface-demo.js"></script>
+    <script type="text/javascript">
+     registerHbarsHelpers();
+
+     function makeTabActive(id) {
+         $('ul.tabs li').removeClass('current');
+         $('.tab-content').removeClass('current');
+
+         $("#"+id).addClass('current');
+         $("#"+id+"-button").addClass('current');
+     }
+
+     $('ul.tabs li').click(function(){
+         makeTabActive($(this).attr('data-tab'));
+	   });
+
+     var vid = document.getElementById('videoel'),
+         vidReady = false;
+     var defaultTok = 1, defaultNumNulls = 20;
+     var tok = defaultTok,
+         people = [], defaultPerson = $('#uid').text()
+         images = [],
+         training = false;
+     var numNulls, sentTimes, receivedTimes;
+     var socket, socketName;
+
+     $("#trainingChk").bootstrapToggle('off');
+
+     if (navigator.getUserMedia) {
+         var videoSelector = {video : true};
+         navigator.getUserMedia(videoSelector, umSuccess, function() {
+             alert("Error fetching video from webcam");
+         });
+     } else {
+         alert("No webcam detected.");
+     }
+
+     $("#serverBtn.btn-group > .btn").click(changeServerCallback);
+     $("#trainingChk").change(trainingChkCallback);
+     $("#clearChk").click(clearChkCallback);
+     redrawPeople();
+     createSocket("wss:" + window.location.hostname + ":9001", "Local");
+    </script>
+</html>
