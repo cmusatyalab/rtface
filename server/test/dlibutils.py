@@ -11,11 +11,12 @@ from collections import defaultdict
 import sys
 import pickle
 import pdb
+sys.path.insert(0, '..')
 from MyUtils import clamp
 from vision import drectangle_to_tuple
 from concurrent.futures import ProcessPoolExecutor
 
-TIME=True
+TIME=False
 stats=defaultdict(list)
 
 def timeit(profile=False):

@@ -594,7 +594,7 @@ class FaceTransformation(object):
             self.openface_client.setTraining(True)
 
         # detect the largest face
-        rois = detect_faces(rgb_frame, self.detector, largest_only=True)
+        rois = detect_faces(rgb_frame, self.detector, largest_only=True, upsample_num_times=1)
 
         # only the largest face counts
         if (len(rois) > 1):

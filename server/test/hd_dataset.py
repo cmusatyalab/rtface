@@ -16,57 +16,6 @@ from random import shuffle
 import dlibutils
 from skimage import io
 
-def get_yt_vid_name(video_folder):
-    if video_folder.endswith('/'):
-        video_folder = video_folder_path[:-1]
-    return os.path.basename(video_folder)
-
-def get_yt_name(video_folder):
-    vid_name = get_yt_vid_name(video_folder)
-    vid_name_splits = vid_name.split('_')
-    person_name = '_'.join(vid_name_splits[-2:])[:-4]
-    return person_name
-
-def get_yt_vid_length(video_folder):
-    return (os.listdir(video_folder))
-
-def get_yt_vids_length(video_folders):
-    vids_length=[len(os.listdir(video_folder)) for video_folder in video_folders]
-    return vids_length
-    
-def get_yt_vids_by_name(dataset_path):
-    items=os.listdir(dataset_path)
-    yt_info=defaultdict(list)
-    for item in items:
-        name=get_yt_name(item)
-        video_folder=os.path.join(dataset_path, item)
-        yt_info[name].append(video_folder)
-    return yt_info
-
-def get_yt_det(video_folder, dets_path_formatter):
-    vid_name=get_yt_vid_name(video_folder)
-    with open(dets_path_formatter.format(vid_name),'r') as f:
-        dets=pickle.load(f)
-    return dets
-
-def get_yt_v_det(video_folder, dets_path_formatter):
-    dets=get_yt_det(video_folder, dets_path_formatter)
-    v_dets=[det for det in dets if len(det)>0]
-    return v_dets
-    
-def get_max_det_vids_by_name(dataset_path, dets_path_formatter):
-    yt_vids_by_name=get_yt_vids_by_name(dataset_path)
-    max_det_vids_by_name={}
-    for name, video_folders in sorted(yt_vids_by_name.iteritems()):
-        vids_v_dets_num=[len(get_yt_v_det(video_folder, dets_path_formatter))
-                     for video_folder in video_folders]
-        max_v_dets_num=max(vids_v_dets_num)
-        max_v_dets_video_name=video_folders[vids_v_dets_num.index(max_v_dets_num)]
-        max_det_vids_by_name[name]=(max_v_dets_video_name, max_v_dets_num)
-#        print '{}:{},{}'.format(name, max_v_dets_video_name, max_v_dets_num)
-    return max_det_vids_by_name
-        
-    
 def generate_training_sets(dataset_path, size, dets_path_formatter):
     yt_vids_by_name=get_yt_vids_by_name(dataset_path)
     training_set=defaultdict(list)
