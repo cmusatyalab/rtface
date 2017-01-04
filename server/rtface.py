@@ -141,8 +141,8 @@ class FaceTransformation(object):
                 detected_face.name=None
 #                tracker = create_tracker(tracker_frame, detected_face.roi, use_dlib=Config.DLIB_TRACKING)
                 tracker=AsyncTrackWorker()
-                tracker.start()
                 tracker.start_track(tracker_frame, tuple_to_drectangle(detected_face.roi))
+                tracker.start()
                 detected_face.tracker = tracker
                 tracking_faces.append(detected_face)
         return fid, tracking_faces, revalidate_trigger_faces
@@ -543,7 +543,7 @@ class FaceTransformation(object):
             self.training=False
             self.openface_client.setTraining(False)
 
-        height, self.image_width, _=rgb_img.shape
+#        height, self.image_width, _=rgb_img.shape
 #        LOG.debug('received image. {}x{}'.format(self.image_width, height))
 
         # track existing faces

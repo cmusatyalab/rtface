@@ -222,6 +222,7 @@ class AsyncTrackWorker(TrackWorker):
                 self.worker_op.send(ret)
                 LOG.debug('{} {} tracked: {}'.format(self, self.id, time.time() - st))
             elif updates[0] == self.KILL:
+                tracker = None
                 LOG.debug('killed: {}'.format(self))
                 break
             else:

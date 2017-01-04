@@ -1,9 +1,11 @@
 #!/usr/bin/env python
+import os
+# must be called before dlib is set
+os.environ["OMP_NUM_THREADS"] = "1"
 
 import time
 import Queue
 import struct
-import os
 import sys
 import pdb
 import multiprocessing
@@ -22,12 +24,14 @@ import dlib
 import yaml
 import numpy as np
 from PIL import Image
+#import objgraph
 sys.path.insert(0, '..')
 from proxy import PrivacyMediatorApp, launch_openface
 from rtface import FaceTransformation
 from vision import FaceROI, drectangle_to_tuple, np_array_to_jpeg_data_url, clamp_roi
 
-TEST_FRAME_NUM = 20000
+START_FRAME_IDX = 5000
+TEST_FRAME_NUM = 3000
 
 def load_vid(video_f, num_frames=1000):
     imgs=[]
@@ -58,7 +62,7 @@ def baseline(rtface, img_paths):
     ttt=0
     ttin=0
     print 'loading images'    
-    imgs = load_imgs(img_paths[:TEST_FRAME_NUM])
+    imgs = load_imgs(img_paths[START_FRAME_IDX:START_FRAME_IDX+TEST_FRAME_NUM])
     print 'running test'        
     start=time.time()
     for fid, img_raw in enumerate(imgs):
@@ -81,7 +85,7 @@ def baseline(rtface, img_paths):
     ttin += len(imgs) 
     stats['total_time']=ttt
     stats['num_images']=ttin
-    yaml.dump(stats, open('baseline.log', 'w+'))
+    yaml.dump(stats, open('baseline.log', 'a+'))
     print 'finished!!'
     
 def yt_train(transformer, training_sets):
@@ -107,23 +111,32 @@ def rtface_test(transformer, img_paths):
     ttt=0
     ttin=0
     print 'loading images'    
-    imgs = load_imgs(img_paths[:TEST_FRAME_NUM])
+    imgs = load_imgs(img_paths[START_FRAME_IDX:START_FRAME_IDX+TEST_FRAME_NUM])
     print 'running test'        
     start=time.time()
     transformer.tracking_thread_idle_event.set()
-    for fid, img_raw in enumerate(imgs):
-        ds=time.time()
-        rgb_img = np.array(Image.open(StringIO(img_raw)))
-        ret, _ =transformer.swap_face(rgb_img, None)
+    for fid, img_raw in enumerate(imgs[:2000]):
+#        print 'iter {}'.format(fid)    
+#        objgraph.show_growth(limit=10)   # Start counting
+#        ds=time.time()
+        sio = StringIO(img_raw)
+        im = Image.open(sio)
+        rgb_img = np.array(im)
+        ret, _ = transformer.swap_face(rgb_img, None)
         if ret:
             ret.frame=None
+            ret.faceROIs=None            
+        rgb_img = None
+        im.close()
+        sio.close()
+#        objgraph.show_growth(limit=10)   # Start counting        
 #        print 'total time: {}'.format(time.time() - ds)
     end = time.time()
     ttt += end-start
     ttin += len(imgs) 
     stats['total_time']=ttt
     stats['num_images']=ttin
-    yaml.dump(stats, open('rtface.log', 'w+'))
+    yaml.dump(stats, open('rtface.log', 'a+'))
     print 'finished'
 
 if __name__ == "__main__":
