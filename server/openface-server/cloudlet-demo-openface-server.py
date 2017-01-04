@@ -563,7 +563,7 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
             resp=msg
 
             global test_idx
-            print "svm result: {1}".format(test_idx, name)
+#            print "svm result: {1}".format(test_idx, name)
             if STORE_IMG_DEBUG:
                 output_file = str(EXPERIMENT+'/test') +'/'+ str(test_idx) + '.jpg'
                 img.save(output_file)

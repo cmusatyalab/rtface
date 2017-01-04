@@ -27,6 +27,8 @@ from proxy import PrivacyMediatorApp, launch_openface
 from rtface import FaceTransformation
 from vision import FaceROI, drectangle_to_tuple, np_array_to_jpeg_data_url, clamp_roi
 
+TEST_FRAME_NUM = 20000
+
 def load_vid(video_f, num_frames=1000):
     imgs=[]
     cap=cv2.VideoCapture(video_f)
@@ -56,7 +58,7 @@ def baseline(rtface, img_paths):
     ttt=0
     ttin=0
     print 'loading images'    
-    imgs = load_imgs(img_paths[:500])
+    imgs = load_imgs(img_paths[:TEST_FRAME_NUM])
     print 'running test'        
     start=time.time()
     for fid, img_raw in enumerate(imgs):
@@ -64,7 +66,7 @@ def baseline(rtface, img_paths):
         np_arr = np.fromstring(img_raw, np.uint8)
         img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
         dets = dlibutils.detect_img(detector, img, upsample=1)
-        print 'detect time: {}'.format(time.time() - ds)
+#        print 'detect time: {}'.format(time.time() - ds) 
         for det in dets:
             roi = drectangle_to_tuple(det)
             (x1,y1,x2,y2) = clamp_roi(roi, 1080, 720)
@@ -72,8 +74,8 @@ def baseline(rtface, img_paths):
             face_string = np_array_to_jpeg_data_url(face_pixels)
             rs=time.time()
             resp = rtface.openface_client.addFrame(face_string, 'detect')
-            print 'recog time: {}'.format(time.time() - rs)
-        print 'total time: {}'.format(time.time() - ds)
+#            print 'recog time: {}'.format(time.time() - rs)
+#        print 'total time: {}'.format(time.time() - ds)
     end = time.time()
     ttt += end-start
     ttin += len(imgs) 
@@ -105,19 +107,23 @@ def rtface_test(transformer, img_paths):
     ttt=0
     ttin=0
     print 'loading images'    
-    imgs = load_imgs(img_paths[:500])
+    imgs = load_imgs(img_paths[:TEST_FRAME_NUM])
     print 'running test'        
     start=time.time()
     transformer.tracking_thread_idle_event.set()
     for fid, img_raw in enumerate(imgs):
         ds=time.time()
         rgb_img = np.array(Image.open(StringIO(img_raw)))
-        start=time.time()            
         ret, _ =transformer.swap_face(rgb_img, None)
         if ret:
             ret.frame=None
-        print 'total time: {}'.format(time.time() - ds)
-    end=time.time()                    
+#        print 'total time: {}'.format(time.time() - ds)
+    end = time.time()
+    ttt += end-start
+    ttin += len(imgs) 
+    stats['total_time']=ttt
+    stats['num_images']=ttin
+    yaml.dump(stats, open('rtface.log', 'w+'))
     print 'finished'
 
 if __name__ == "__main__":
