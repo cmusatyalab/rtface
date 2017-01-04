@@ -50,6 +50,7 @@ from sklearn.svm import SVC
 from NetworkProtocol import *
 from threading import Lock
 import openface
+import pickle
 from demo_config import Config
 os.environ["OMP_NUM_THREADS"] = "2"
 
@@ -107,6 +108,11 @@ images = {}
 training = False
 people = []
 svm = None
+if os.path.isfile('svm.model'):
+    svm=pickle.load(open('svm.model', 'rb'))
+    people=pickle.load(open('svm.label', 'rb'))
+    print 'loaded svm'
+                
 svm_lock = Lock()
 mean_features=None
 # an arbitrary distance threashold for distinguish between one person and unknown
@@ -124,11 +130,6 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
             global svm_lock
             if len(people) > 1:
                 self.trainSVM()                
-        else:
-            self.images = {}
-            self.training = False
-            people = []
-            self.svm = None
         if args.unknown:
             self.unknownImgs = np.load("./unknown.npy")
 
@@ -433,6 +434,9 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
             svm_lock.release()
             print("released svm lock")                                    
             print("successfully trained svm {} people:{}".format(svm, people))                    
+            pickle.dump(svm, open('svm.model', 'wb+'))
+            pickle.dump(people, open('svm.label', 'wb+'))
+            print("saved")
 
     def processFrame(self, dataURL, name):
         global images
@@ -496,7 +500,7 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
 
             rep = net.forward(alignedFace)
 
-            print('net forward time: {} ms'.format((time.time()-start)*1000))
+#            print('net forward time: {} ms'.format((time.time()-start)*1000))
             if STORE_IMG_DEBUG:
                 global rep_file
                 print >> rep_file, str(phash)+':\n'
@@ -535,7 +539,7 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
                     maxI = np.argmax(predictions)
                     confidence = predictions[maxI]
                     identity=maxI
-                    print 'svm predict {} with {}'.format(identity, confidence)                    
+#                    print 'svm predict {} with {}'.format(identity, confidence)                    
                     # if confidence is too low
                     if confidence < Config.RECOG_PROB_THRESHOLD:
                         identity=-1
@@ -546,7 +550,7 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
 
         if not training:
             if identity == -1:
-                print "svm detect result unknown!"
+#                print "svm detect result unknown!"
                 name = ""
             else:
                 name = people[identity]
