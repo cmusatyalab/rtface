@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import os
 class Config(object):
-    GABRIEL_PATH=os.path.expanduser("~/dependency/gabriel/server")
+    GABRIEL_PATH=os.path.expanduser("~/gabriel-v2/gabriel/server")
     DEBUG=False
     WRITE_PICTURE_DEBUG=False
     WRITE_PICTURE_DEBUG_PATH='./debug_picture/'
@@ -23,7 +23,7 @@ class Config(object):
     OPENCV_PROFILE_FACE_CASCADE_PATH='/home/faceswap-admin/dependency/dependency/opencv-src/opencv-3.1.0/data/lbpcascades/lbpcascade_profileface.xml'
 
     # blurry detection
-    IMAGE_CLEAR_THRESHOLD=30
+    IMAGE_CLEAR_THRESHOLD=0
 #    IMAGE_CLEAR_THRESHOLD=65
 
     # detect
