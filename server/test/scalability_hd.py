@@ -23,7 +23,7 @@ import yaml
 import numpy as np
 from PIL import Image
 sys.path.insert(0, '..')
-from proxy import PrivacyMediatorApp
+from proxy import PrivacyMediatorApp, launch_openface
 from rtface import FaceTransformation
 from vision import FaceROI, drectangle_to_tuple, np_array_to_jpeg_data_url, clamp_roi
 
@@ -121,7 +121,8 @@ def rtface_test(transformer, img_paths):
     print 'finished'
 
 if __name__ == "__main__":
-    transformer = FaceTransformation()
+    openface_port = launch_openface()
+    transformer = FaceTransformation(openface_port=openface_port)
     pm_app = PrivacyMediatorApp(transformer, None, None, engine_id='exp')
     sleep(2)
     if sys.argv[1] == 'baseline':
@@ -133,51 +134,6 @@ if __name__ == "__main__":
         training_set=yt_dataset.mmsys_get_training_set('hd/training_images')
         print training_set
         yt_train(transformer, training_set)
-
-    # test_sets=[
-    #     'yt/imgs/0874_02_020_jacques_chirac.avi',
-    #     'yt/imgs/0917_03_008_jennifer_aniston.avi',
-    #     'yt/imgs/1033_03_005_jet_li.avi',
-    #     'yt/imgs/0845_03_015_hugh_grant.avi',
-    #     'yt/imgs/1413_01_013_meryl_streep.avi',
-    #     'yt/imgs/0094_03_002_al_gore.avi',
-    #     'yt/imgs/1780_01_007_sylvester_stallone.avi',
-    #     'yt/imgs/1762_03_004_steven_spielberg.avi',
-    #     'yt/imgs/1195_01_009_julia_roberts.avi',
-    #     'yt/imgs/0302_03_006_angelina_jolie.avi',
-    # ]
-    
-    
-    # dummy_video_app = PrivacyMediatorApp(transformer)
-    # baseline_test(transformer)
-    # pdb.set_trace()
-    # sleep(1000)
-
-    
-#    bm_train(transformer, dummy_video_app)
-#    dummy_video_app = PrivacyMediatorApp(transformer, image_queue, result_queue, engine_id = 'dummy') 
-    # dummy_video_app.start()
-    # dummy_video_app.isDaemon = True
-
-    # try:
-    #     while True:
-    #         time.sleep(1)
-    # except Exception as e:
-    #     pass
-    # except KeyboardInterrupt as e:
-    #     sys.stdout.write("user exits\n")
-    # finally:
-    #     if video_receive_client is not None:
-    #         video_receive_client.terminate()
-    #     if dummy_video_app is not None:
-    #         dummy_video_app.terminate()
-    #     if transformer is not None:
-    #         transformer.terminate()
-    #     if flask_process is not None and flask_process.is_alive():
-    #         flask_process.terminate()
-    #         flask_process.join()
-    #     result_pub.terminate()
-
 
 # v2    
         # 'yt/imgs/0874_02_020_jacques_chirac.avi',

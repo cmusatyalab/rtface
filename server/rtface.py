@@ -40,7 +40,7 @@ class RecognitionRequestUpdate(object):
         self.location=location
 
 class FaceTransformation(object):
-    def __init__(self):
+    def __init__(self, openface_port=9000):
         if Config.DEBUG:
             mpl = multiprocessing.log_to_stderr()
             mpl.setLevel(logging.DEBUG)
@@ -66,7 +66,7 @@ class FaceTransformation(object):
         # openface related
         self.training_cnt = 0
         self.server_ip = u"ws://localhost"
-        self.server_port = 9000
+        self.server_port = openface_port
         # changed to two openface_client
         # 1 sync for blocking response
         # another for non-blocking response in detection_process
@@ -404,7 +404,9 @@ class FaceTransformation(object):
             detection_process_openface_client=AsyncOpenFaceClientProcess(
                 call_back=self.on_receive_openface_server_result,
                 queue=recognition_queue,
-                recognition_busy_event=recognition_busy_event)
+                recognition_busy_event=recognition_busy_event,
+                server_port=self.server_port
+            )
             while (not stop_event.is_set()):
                 frame, fid = self.get_image_from_queue(img_queue)
                 if frame == None:

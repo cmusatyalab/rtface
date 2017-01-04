@@ -43,7 +43,7 @@ import cv2
 import Queue
 from demo_config import Config
 from vision import *
-from MyUtils import create_dir
+from MyUtils import create_dir, get_unused_port
 
 if os.path.isdir(Config.GABRIEL_PATH) is True:
     sys.path.insert(0, Config.GABRIEL_PATH)
@@ -52,6 +52,7 @@ import gabriel
 import gabriel.proxy
 
 LOG = gabriel.logging.getLogger(__name__)
+dir_path = os.path.dirname(os.path.realpath(__file__))
 
 # move to a tool?
 def process_command_line(argv):
@@ -310,9 +311,20 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
         # b,g,r = cv2.split(bgr_img)       # get b,g,r
         # image = cv2.merge([r,g,b])     # switch it to rgb
 
-
+def launch_openface():
+    import subprocess
+    openface_port = get_unused_port()
+    print "openface server listening at port: {}".format(openface_port)
+    subprocess.Popen(["./openface-server/cloudlet-demo-openface-server.py",
+                      "--port",
+                      '{}'.format(openface_port)
+                  ], cwd=dir_path)
+    time.sleep(10)
+    return openface_port
+    
 if __name__ == "__main__":
-    transformer = FaceTransformation()
+    openface_port = launch_openface()
+    transformer = FaceTransformation(openface_port=openface_port)
 
     settings, args = process_command_line(sys.argv[1:])
     ip_addr, port = gabriel.network.get_registry_server_address(settings.address)

@@ -576,6 +576,6 @@ if __name__ == '__main__':
     factory = WebSocketServerFactory()
     
     factory.protocol = OpenFaceServerProtocol
-
+    print('args.port: {}'.format(args.port))
     reactor.listenTCP(args.port, factory)
     reactor.run()
