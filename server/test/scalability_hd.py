@@ -69,8 +69,8 @@ def load_bulk_imgs(img_paths):
             ret.append(grp)
             grp=[]
     return ret
-    
-def baseline(rtface, img_paths):        
+
+def baseline(rtface, img_paths, downsample=False, shrink_ratio=3):        
     ''' baseline pipeline test, detect and recognize every frame '''
     print 'start baseline test'        
     detector=dlib.get_frontal_face_detector()
@@ -85,26 +85,45 @@ def baseline(rtface, img_paths):
     while len(imgs) > 0:
         grp = imgs.pop(0)
         ttin += len(grp)        
-        for img_raw in grp:
+        while len(grp) > 0:        
+            img_raw = grp.pop(0)
+            sio = StringIO(img_raw)
+            im = Image.open(sio)
+            rgb_img = np.array(im)
             ds=time.time()
-            np_arr = np.fromstring(img_raw, np.uint8)
-            img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-            dets = dlibutils.detect_img(detector, img, upsample=1)
+            h, w, _ = rgb_img.shape
+            if downsample:
+                sm_image = cv2.resize(rgb_img, (int(w/shrink_ratio), int(h/shrink_ratio)))
+#                print 'downsample time: {}'.format(time.time() - ds)
+                sm_dets = dlibutils.detect_img(detector, sm_image, upsample=0)
+                dets = dlib.rectangles()
+                for sm_det in sm_dets:
+                    dets.append(dlib.rectangle(
+                        int(sm_det.left()*shrink_ratio),
+                        int(sm_det.top()*shrink_ratio),
+                        int(sm_det.right()*shrink_ratio),
+                        int(sm_det.bottom()*shrink_ratio),                        
+                    ))
+            else:
+                dets = dlibutils.detect_img(detector, rgb_img, upsample=0)
+#            print 'detected {} faces for time: {}'.format(len(dets), time.time() - ds)
             for det in dets:
                 roi = drectangle_to_tuple(det)
                 (x1,y1,x2,y2) = clamp_roi(roi, 1080, 720)
-                face_pixels = img[y1:y2+1, x1:x2+1]
+                face_pixels = rgb_img[y1:y2+1, x1:x2+1]
                 face_string = np_array_to_jpeg_data_url(face_pixels)
                 rs=time.time()
                 resp = rtface.openface_client.addFrame(face_string, 'detect')
-            del img
-            del np_arr
+            im.close()
+            sio.close()
+            del im, sio, rgb_img
+#            print 'total time: {}'.format(time.time() - ds)            
 #        objgraph.show_backrefs(to)
     end = time.time()
     ttt += end-start
     stats['total_time']=ttt
     stats['num_images']=ttin
-    yaml.dump(stats, open('baseline.log', 'a+'))
+    yaml.dump(stats, open(sys.argv[2], 'a+'))
     print 'finished!!'
     
 def yt_train(transformer, training_sets):
@@ -172,18 +191,20 @@ def rtface_test(transformer, img_paths):
     print 'finished'
 
 if __name__ == "__main__":
+    if not os.path.isfile(sys.argv[2]):
+        raise ValueError('please specify a valid output log file')
+
     openface_port = launch_openface()
     transformer = FaceTransformation(openface_port=openface_port)
     pm_app = PrivacyMediatorApp(transformer, None, None, engine_id='exp')
     sleep(2)
     if sys.argv[1] == 'baseline':
-        test_dict=yt_dataset.mmsys_get_test_set()
         baseline(transformer, sorted(glob.glob('hd/imgs/*.jpg')))
+    elif sys.argv[1] == 'downsample':
+        baseline(transformer, sorted(glob.glob('hd/imgs/*.jpg')), downsample=True)
     elif sys.argv[1] == 'rtface':
         rtface_test(transformer, sorted(glob.glob('hd/imgs/*.jpg')))
     elif sys.argv[1] == 'train':
-        if not os.path.isfile(sys.argv[2]):
-            raise ValueError('please specify a valid output log file')
         training_set=yt_dataset.mmsys_get_training_set('hd/training_images')
         print training_set
         yt_train(transformer, training_set)
