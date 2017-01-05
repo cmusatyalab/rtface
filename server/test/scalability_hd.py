@@ -24,14 +24,19 @@ import dlib
 import yaml
 import numpy as np
 from PIL import Image
-#import objgraph
+import objgraph
 sys.path.insert(0, '..')
 from proxy import PrivacyMediatorApp, launch_openface
 from rtface import FaceTransformation
 from vision import FaceROI, drectangle_to_tuple, np_array_to_jpeg_data_url, clamp_roi
 
-START_FRAME_IDX = 5000
-TEST_FRAME_NUM = 3000
+# for obama_interview.mp4
+#START_FRAME_IDX = 5000
+#TEST_FRAME_NUM = 3000
+
+# for band.mp4
+START_FRAME_IDX = 0
+TEST_FRAME_NUM = 2783
 
 def load_vid(video_f, num_frames=1000):
     imgs=[]
@@ -53,6 +58,17 @@ def load_imgs(img_paths):
         with open(img_path, 'rb') as f:
             ret.append(f.read())
     return ret
+
+def load_bulk_imgs(img_paths):
+    ret=[]
+    grp=[]
+    for img_path in img_paths:
+        with open(img_path, 'rb') as f:
+            grp.append(f.read())
+        if len(grp) % 100 == 0:
+            ret.append(grp)
+            grp=[]
+    return ret
     
 def baseline(rtface, img_paths):        
     ''' baseline pipeline test, detect and recognize every frame '''
@@ -62,27 +78,30 @@ def baseline(rtface, img_paths):
     ttt=0
     ttin=0
     print 'loading images'    
-    imgs = load_imgs(img_paths[START_FRAME_IDX:START_FRAME_IDX+TEST_FRAME_NUM])
+    imgs = load_bulk_imgs(img_paths[START_FRAME_IDX:START_FRAME_IDX+TEST_FRAME_NUM])
     print 'running test'        
     start=time.time()
-    for fid, img_raw in enumerate(imgs):
-        ds=time.time()
-        np_arr = np.fromstring(img_raw, np.uint8)
-        img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-        dets = dlibutils.detect_img(detector, img, upsample=1)
-#        print 'detect time: {}'.format(time.time() - ds) 
-        for det in dets:
-            roi = drectangle_to_tuple(det)
-            (x1,y1,x2,y2) = clamp_roi(roi, 1080, 720)
-            face_pixels = img[y1:y2+1, x1:x2+1]
-            face_string = np_array_to_jpeg_data_url(face_pixels)
-            rs=time.time()
-            resp = rtface.openface_client.addFrame(face_string, 'detect')
-#            print 'recog time: {}'.format(time.time() - rs)
-#        print 'total time: {}'.format(time.time() - ds)
+    to = imgs[0][1]
+    while len(imgs) > 0:
+        grp = imgs.pop(0)
+        ttin += len(grp)        
+        for img_raw in grp:
+            ds=time.time()
+            np_arr = np.fromstring(img_raw, np.uint8)
+            img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+            dets = dlibutils.detect_img(detector, img, upsample=1)
+            for det in dets:
+                roi = drectangle_to_tuple(det)
+                (x1,y1,x2,y2) = clamp_roi(roi, 1080, 720)
+                face_pixels = img[y1:y2+1, x1:x2+1]
+                face_string = np_array_to_jpeg_data_url(face_pixels)
+                rs=time.time()
+                resp = rtface.openface_client.addFrame(face_string, 'detect')
+            del img
+            del np_arr
+#        objgraph.show_backrefs(to)
     end = time.time()
     ttt += end-start
-    ttin += len(imgs) 
     stats['total_time']=ttt
     stats['num_images']=ttin
     yaml.dump(stats, open('baseline.log', 'a+'))
@@ -106,37 +125,50 @@ def yt_train(transformer, training_sets):
     transformer.openface_client.setTraining(False)
 
 def rtface_test(transformer, img_paths):
-    print 'start rtface test'        
+    print 'start rtface test. logging into --> {}'.format(sys.argv[2])
     stats={}
     ttt=0
     ttin=0
     print 'loading images'    
-    imgs = load_imgs(img_paths[START_FRAME_IDX:START_FRAME_IDX+TEST_FRAME_NUM])
+#    imgs = load_imgs(img_paths[START_FRAME_IDX:START_FRAME_IDX+TEST_FRAME_NUM])
+    imgs = load_bulk_imgs(img_paths[START_FRAME_IDX:START_FRAME_IDX+TEST_FRAME_NUM])
     print 'running test'        
     start=time.time()
     transformer.tracking_thread_idle_event.set()
-    for fid, img_raw in enumerate(imgs[:2000]):
+    fid=0
+    # for grp_id in range(len(imgs)):
+    #     for img_raw in imgs[grp_id]:
+    to = imgs[0][0]
+    while len(imgs) > 0:
+        grp = imgs.pop(0)
+        ttin += len(grp)
+        while len(grp) > 0:        
+            img_raw = grp.pop(0)
+            sio = StringIO(img_raw)
+            im = Image.open(sio)
+            rgb_img = np.array(im)
+            ret, _ = transformer.swap_face(rgb_img, None)
+            if ret:
+                ret.frame=None
+                ret.faceROIs=None            
+            im.close()
+            sio.close()
+            del im, ret, sio, rgb_img
+            fid+=1
+        del grp
+#        objgraph.show_growth(limit=10)   # Start counting
+#        objgraph.show_backrefs(to)
+#        objgraph.show_chain(objgraph.find_backref_chain(to,objgraph.is_proper_module))
 #        print 'iter {}'.format(fid)    
 #        objgraph.show_growth(limit=10)   # Start counting
 #        ds=time.time()
-        sio = StringIO(img_raw)
-        im = Image.open(sio)
-        rgb_img = np.array(im)
-        ret, _ = transformer.swap_face(rgb_img, None)
-        if ret:
-            ret.frame=None
-            ret.faceROIs=None            
-        rgb_img = None
-        im.close()
-        sio.close()
 #        objgraph.show_growth(limit=10)   # Start counting        
 #        print 'total time: {}'.format(time.time() - ds)
     end = time.time()
     ttt += end-start
-    ttin += len(imgs) 
     stats['total_time']=ttt
     stats['num_images']=ttin
-    yaml.dump(stats, open('rtface.log', 'a+'))
+    yaml.dump(stats, open(sys.argv[2], 'a+'))
     print 'finished'
 
 if __name__ == "__main__":
@@ -150,6 +182,8 @@ if __name__ == "__main__":
     elif sys.argv[1] == 'rtface':
         rtface_test(transformer, sorted(glob.glob('hd/imgs/*.jpg')))
     elif sys.argv[1] == 'train':
+        if not os.path.isfile(sys.argv[2]):
+            raise ValueError('please specify a valid output log file')
         training_set=yt_dataset.mmsys_get_training_set('hd/training_images')
         print training_set
         yt_train(transformer, training_set)
