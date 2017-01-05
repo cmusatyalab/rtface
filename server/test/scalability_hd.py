@@ -167,9 +167,9 @@ def rtface_test(transformer, img_paths):
             im = Image.open(sio)
             rgb_img = np.array(im)
             ret, _ = transformer.swap_face(rgb_img, None)
-            if ret:
-                ret.frame=None
-                ret.faceROIs=None            
+#            if ret:
+#                ret.frame=None
+#                ret.faceROIs=None            
             im.close()
             sio.close()
             del im, ret, sio, rgb_img

@@ -2,7 +2,7 @@
 import os
 class Config(object):
     GABRIEL_PATH=os.path.expanduser("~/gabriel-v2/gabriel/server")
-    DEBUG=False
+    DEBUG=True
     WRITE_PICTURE_DEBUG=False
     WRITE_PICTURE_DEBUG_PATH='./debug_picture/'
     FACE_MAX_DRIFT_PERCENT=0.5
@@ -39,3 +39,5 @@ class Config(object):
     PERSIST_DENATURED_IMAGE=False
     PERSIST_DENATURED_IMAGE_OUTPUT_PATH='./denatured/'
     
+    DOWNSAMPLE_TRACKING=4
+#    DOWNSAMPLE_DETECTION=4    

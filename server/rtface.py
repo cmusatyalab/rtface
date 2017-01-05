@@ -435,6 +435,12 @@ class FaceTransformation(object):
                     # catchup is not that useful if we only send selective images to
                     # this detection process
                     # faces=self.catchup(frame, rois, img_queue, cur_bxids)
+
+                    if Config.DOWNSAMPLE_TRACKING != 1:
+                        rois = [enlarge_drectangles(roi, Config.DOWNSAMPLE_TRACKING)
+                                for roi in rois]
+                        frame = downsample(frame, Config.DOWNSAMPLE_TRACKING)
+
                     faces=self.create_faceROIs(rois, cur_bxids)
                     tracker_updates = {'frame':FrameTuple(frame, fid), 'faces':faces}
                 else:
@@ -490,6 +496,8 @@ class FaceTransformation(object):
                 # get result
                 for face in faces:
                     (conf, new_roi) = face.tracker.get_position()
+                    # if Config.DOWNSAMPLE_TRACKING != 1:
+                    #     new_roi = enlarge_drectangles(new_roi, Config.DOWNSAMPLE_TRACKING)
                     face.roi = drectangle_to_tuple(new_roi)
                     if face.update_tracker_failure(conf):
                         LOG.debug('frontal tracker conf too low {}'.format(conf))
@@ -544,7 +552,11 @@ class FaceTransformation(object):
     def swap_face(self,rgb_img, bgr_img=None):
 #        im = Image.fromarray(frame)
 #        im.save('/home/faceswap-admin/privacy-mediator/image/frame.jpg')
-
+        if Config.DOWNSAMPLE_TRACKING != 1:
+            sm_rgb_img = downsample(rgb_img, Config.DOWNSAMPLE_TRACKING)
+        else:
+            sm_rgb_img = rgb_img
+            
         if self.training:
             LOG.debug('main-process stopped openface training!')            
             self.training=False
@@ -556,7 +568,7 @@ class FaceTransformation(object):
         # track existing faces
         self.faces_lock.acquire()
 #        faces=self.faces[::]
-        self.track_faces(rgb_img, self.faces)
+        self.track_faces(sm_rgb_img, self.faces)
         self.faces_lock.release()
 
         
@@ -582,7 +594,7 @@ class FaceTransformation(object):
 #        LOG.debug('# faces returned: {}'.format(len(self.faces)))
 
         self.persist_image(rgb_img, face_snippets)
-        output_img = rgb_img
+        output_img = sm_rgb_img
         # need to return this value!
         img=self.framebuffer.push_faceframe(FaceFrame(self.frame_id,
                                                   output_img,
