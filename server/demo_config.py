@@ -2,7 +2,7 @@
 import os
 class Config(object):
     GABRIEL_PATH=os.path.expanduser("~/gabriel-v2/gabriel/server")
-    DEBUG=True
+    DEBUG=False
     WRITE_PICTURE_DEBUG=False
     WRITE_PICTURE_DEBUG_PATH='./debug_picture/'
     FACE_MAX_DRIFT_PERCENT=0.5
