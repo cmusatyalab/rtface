@@ -322,3 +322,32 @@ def iou_area(a, b):
 
     overlaps = clamp(1.0*inters / uni, 0, 1)
     return overlaps
+
+def enlarge_drectangles(sm_dets, enlarge_ratio):
+    if isinstance(sm_dets, dlib.rectangles):
+        dets = dlib.rectangles()
+        for sm_det in sm_dets:
+            dets.append(dlib.rectangle(
+                int(sm_det.left()*enlarge_ratio),
+                int(sm_det.top()*enlarge_ratio),
+                int(sm_det.right()*enlarge_ratio),
+                int(sm_det.bottom()*enlarge_ratio),                        
+            ))
+        return dets
+    elif isinstance(sm_dets, dlib.rectangle):
+        det=dlib.rectangle(
+                int(sm_det.left()*enlarge_ratio),
+                int(sm_det.top()*enlarge_ratio),
+                int(sm_det.right()*enlarge_ratio),
+                int(sm_det.bottom()*enlarge_ratio))
+        return det
+    elif isinstance(sm_dets, tuple) and len(sm_dets) == 4:
+        return (sm_dets[0]*enlarge_ratio,
+                sm_dets[1]*enlarge_ratio,
+                sm_dets[2]*enlarge_ratio,
+                sm_dets[3]*enlarge_ratio)
+    else:
+        raise TypeError('sm_dets needs to be type dlib.drectangles or dlib.rectangle. but is {}'.format(type(sm_dets)))
+
+def downsample(rgb_img, shrink_ratio):
+    return cv2.resize(rgb_img, None, fx=1.0/shrink_ratio, fy=1.0/shrink_ratio)
