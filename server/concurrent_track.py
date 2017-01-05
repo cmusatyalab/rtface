@@ -207,7 +207,11 @@ class AsyncTrackWorker(TrackWorker):
         self.bx=None
         fid=0
         while True:
-            updates=self.worker_ip.recv()
+            try:
+                updates=self.worker_ip.recv()
+            except EOFError:
+                LOG.debug('EOFError! worker should have been killed before')
+                break
             st=time.time()
             if updates[0] == self.INIT:
                 self.init_img, self.init_bx =updates[1], updates[2]
