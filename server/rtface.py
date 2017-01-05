@@ -130,7 +130,10 @@ class FaceTransformation(object):
                 # matched
                 max_overlaps_idx = overlaps.index(max_overlaps)
                 old_face = valid_prev_faces.pop(max_overlaps_idx)
+                LOG.debug('bg-thread sending calling start_track for existing tracker')
+                self.faces_lock.acquire()
                 old_face.tracker.start_track(tracker_frame, tuple_to_drectangle(detected_face.roi))
+                self.faces_lock.release()
                 LOG.debug('bg-thread find match frid {} --> frid {}'.format(old_face.frid, detected_face.frid))
                 old_face.frid=detected_face.frid
                 tracking_faces.append(old_face)
@@ -140,9 +143,11 @@ class FaceTransformation(object):
                 revalidate_trigger_faces.append(detected_face)
                 detected_face.name=None
 #                tracker = create_tracker(tracker_frame, detected_face.roi, use_dlib=Config.DLIB_TRACKING)
+                LOG.debug('bg-thread starting a new tracker process')
                 tracker=AsyncTrackWorker()
-                tracker.start_track(tracker_frame, tuple_to_drectangle(detected_face.roi))
                 tracker.start()
+                tracker.start_track(tracker_frame, tuple_to_drectangle(detected_face.roi))
+                LOG.debug('bg-thread after tracker starts {}'.format(detected_face.frid))   
                 detected_face.tracker = tracker
                 tracking_faces.append(detected_face)
         return fid, tracking_faces, revalidate_trigger_faces
@@ -477,9 +482,11 @@ class FaceTransformation(object):
                     if face.update_tracker_failure(conf):
                         LOG.debug('frontal tracker conf too low {}'.format(conf))
             elif tracker_type == concurrent_track.AsyncTrackWorker:
+                LOG.debug('sending imgs to tracker')
                 # async update all
                 for face in faces:
                     face.tracker.update(rgb_img)
+                    LOG.debug('sent img to a worker')
                 # get result
                 for face in faces:
                     (conf, new_roi) = face.tracker.get_position()
