@@ -24,6 +24,7 @@ import dlib
 import yaml
 import numpy as np
 from PIL import Image
+from skimage import io
 import objgraph
 sys.path.insert(0, '..')
 from proxy import PrivacyMediatorApp, launch_openface
@@ -52,6 +53,16 @@ def load_vid(video_f, num_frames=1000):
 def decode_imgs(img_paths):
     return [io.imread(img_path) for img_path in img_paths]
 
+def decode_bulk_imgs(img_paths):
+    ret=[]
+    grp=[]
+    for img_path in img_paths:
+        grp.append(io.imread(img_path))
+        if len(grp) % 100 == 0:
+            ret.append(grp)
+            grp=[]
+    return ret
+    
 def load_imgs(img_paths):
     ret=[]
     for img_path in img_paths:
@@ -70,30 +81,35 @@ def load_bulk_imgs(img_paths):
             grp=[]
     return ret
 
-def baseline(rtface, img_paths, downsample=False, shrink_ratio=3):        
+def baseline(rtface, img_paths, downsample=False, shrink_ratio=1.5):        
     ''' baseline pipeline test, detect and recognize every frame '''
     print 'start baseline test'        
     detector=dlib.get_frontal_face_detector()
     stats={}
     ttt=0
+    ttp=0
+    ttd=0
     ttin=0
     print 'loading images'    
     imgs = load_bulk_imgs(img_paths[START_FRAME_IDX:START_FRAME_IDX+TEST_FRAME_NUM])
     print 'running test'        
     start=time.time()
-    to = imgs[0][1]
     while len(imgs) > 0:
         grp = imgs.pop(0)
         ttin += len(grp)        
         while len(grp) > 0:        
             img_raw = grp.pop(0)
+
+            ds=time.time()
             sio = StringIO(img_raw)
             im = Image.open(sio)
-            rgb_img = np.array(im)
+            rgb_img = np.asarray(im)
+            ttd += (time.time()-ds)
+            
             ds=time.time()
             h, w, _ = rgb_img.shape
             if downsample:
-                sm_image = cv2.resize(rgb_img, (int(w/shrink_ratio), int(h/shrink_ratio)))
+                sm_image = cv2.resize(rgb_img, None, fx = 1.0 /shrink_ratio, fy = 1.0/shrink_ratio)
 #                print 'downsample time: {}'.format(time.time() - ds)
                 sm_dets = dlibutils.detect_img(detector, sm_image, upsample=0)
                 dets = dlib.rectangles()
@@ -106,7 +122,7 @@ def baseline(rtface, img_paths, downsample=False, shrink_ratio=3):
                     ))
             else:
                 dets = dlibutils.detect_img(detector, rgb_img, upsample=0)
-#            print 'detected {} faces for time: {}'.format(len(dets), time.time() - ds)
+#            print 'detected {} faces for time: {}'.format(len(dets), time.time() - ds) 
             for det in dets:
                 roi = drectangle_to_tuple(det)
                 (x1,y1,x2,y2) = clamp_roi(roi, 1080, 720)
@@ -114,6 +130,8 @@ def baseline(rtface, img_paths, downsample=False, shrink_ratio=3):
                 face_string = np_array_to_jpeg_data_url(face_pixels)
                 rs=time.time()
                 resp = rtface.openface_client.addFrame(face_string, 'detect')
+            ttp += (time.time()-ds)
+
             im.close()
             sio.close()
             del im, sio, rgb_img
@@ -122,6 +140,8 @@ def baseline(rtface, img_paths, downsample=False, shrink_ratio=3):
     end = time.time()
     ttt += end-start
     stats['total_time']=ttt
+    stats['processing_time']=ttp
+    stats['decoding_time']=ttd
     stats['num_images']=ttin
     yaml.dump(stats, open(sys.argv[2], 'a+'))
     print 'finished!!'
@@ -147,6 +167,8 @@ def rtface_test(transformer, img_paths):
     print 'start rtface test. logging into --> {}'.format(sys.argv[2])
     stats={}
     ttt=0
+    ttp=0
+    ttd=0
     ttin=0
     print 'loading images'    
 #    imgs = load_imgs(img_paths[START_FRAME_IDX:START_FRAME_IDX+TEST_FRAME_NUM])
@@ -157,16 +179,23 @@ def rtface_test(transformer, img_paths):
     fid=0
     # for grp_id in range(len(imgs)):
     #     for img_raw in imgs[grp_id]:
-    to = imgs[0][0]
     while len(imgs) > 0:
         grp = imgs.pop(0)
         ttin += len(grp)
         while len(grp) > 0:        
             img_raw = grp.pop(0)
+
+            ds=time.time()
             sio = StringIO(img_raw)
             im = Image.open(sio)
-            rgb_img = np.array(im)
+            rgb_img = np.asarray(im)
+            ttd += (time.time()-ds)
+#            print 'decoding {:.1f}'.format((time.time()-ds)*1000)
+            
+            ds=time.time()
             ret, _ = transformer.swap_face(rgb_img, None)
+            ttp += (time.time()-ds)
+
 #            if ret:
 #                ret.frame=None
 #                ret.faceROIs=None            
@@ -184,8 +213,10 @@ def rtface_test(transformer, img_paths):
 #        objgraph.show_growth(limit=10)   # Start counting        
 #        print 'total time: {}'.format(time.time() - ds)
     end = time.time()
-    ttt += end-start
+    ttt = end-start
     stats['total_time']=ttt
+    stats['processing_time']=ttp
+    stats['decoding_time']=ttd
     stats['num_images']=ttin
     yaml.dump(stats, open(sys.argv[2], 'a+'))
     print 'finished'
