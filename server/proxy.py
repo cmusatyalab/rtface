@@ -281,12 +281,12 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
 
                 st=time.time()
                 _, retval=cv2.imencode('.jpg', bgr_img)
-#                print("imencode tooks {:0.3f}".format((time.time()-st)*1000))
 
-                # fname='{}'.format(time.strftime("%Y-%m-%d-%H-%M-%S.jpg"))
-                # fpath=os.path.join(Config.PERSIST_DENATURED_IMAGE_OUTPUT_PATH, fname)
-                # with open(fpath, 'w+') as f:
-                #     f.write(retval)
+                if Config.PERSIST_DENATURED_IMAGE:
+                    fname='{}'.format(time.strftime("%Y-%m-%d-%H-%M-%S.jpg"))
+                    fpath=os.path.join(Config.PERSIST_DENATURED_IMAGE_OUTPUT_PATH, fname)
+                    with open(fpath, 'w+') as f:
+                        f.write(retval)
                 retval=retval.tostring()
 
         if Config.DEBUG:
