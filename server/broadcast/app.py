@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! env/bin/python
 from flask import Flask, render_template, Response
 import sys
 import gevent

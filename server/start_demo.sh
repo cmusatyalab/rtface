@@ -24,12 +24,14 @@ if [ ! -f $dlib_face_model ] || [ ! -f $openface_model ]; then
     $openface_model_dir/get-models.sh
 fi
 
-echo -e "launching FaceSwap server at dir $DIR"
-gabriel-control &
-sleep 5
+echo -e "launching Privacy Mediator at dir $DIR"
+$DIR/start_gabriel.sh 2>&1 | tee gabriel.log &
+# gabriel-control &
+# sleep 5
 # specify localhost and port to make sure we are connecting to the correct gabriel control server
-gabriel-ucomm -s 127.0.0.1:8021 &
-sleep 8
+# gabriel-ucomm -s 127.0.0.1:8021 &
+# sleep 5
+sleep 15
 $DIR/openface-server/cloudlet-demo-openface-server.py 2>&1 &
 #$DIR/openface-server/start_server.sh &
 sleep 10
@@ -52,12 +54,20 @@ then
     if [[ $debug -eq 1 ]];
     then
         echo 'debug mode...'
-        $DIR/faceswap-proxy.py -s 127.0.0.1:8021 2>&1
+        $DIR/proxy.py -s 127.0.0.1:8021 2>&1
     else
-        $DIR/faceswap-proxy.py -s 127.0.0.1:8021 2>&1
+        echo 'starting trainer...'
+        $DIR/trainer/start.sh 2>&1 | tee trainer.log &
+        echo 'starting policy server ...'
+        $DIR/policy/start.sh 2>&1 | tee policy.log &
+        echo 'starting broadcast server ...'
+        $DIR/broadcast/start.sh 2>&1 | tee broadcast.log &
+        echo 'starting mediator...'
+        $DIR/proxy.py -s 127.0.0.1:8021 2>&1
     fi
 else
     $DIR/kill_demo.sh
     echo "launch failed"
 fi
 
+wait
