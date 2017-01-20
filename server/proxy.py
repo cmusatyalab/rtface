@@ -266,8 +266,8 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
                 for faceROI in faceFrame.faceROIs:
                     name = faceROI.name
                     if name in self.whitelist:
-#                        print('whitelisting roi {}'.format(faceROI))
-                       pass
+                        print('whitelisting roi {}'.format(faceROI))
+                        pass
                     else:
                         faceROI.roi=clamp_roi(faceROI.roi, width, height)
                         (x1, y1, x2, y2) = enlarge_roi( faceROI.roi, 10, width, height)

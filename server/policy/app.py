@@ -1,4 +1,5 @@
-#!/usr/bin/env python
+#!env/bin/python
+
 import glob
 import os
 import simplejson
