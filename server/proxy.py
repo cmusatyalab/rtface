@@ -83,7 +83,7 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
         super(self.__class__, self).__init__(*args, **kwargs)
         self.transformer = transformer
         self.prev_timestamp = time.time()*1000
-        self.whitelist=[]
+        self.whitelist=r_server.lrange('whitelist',0,-1)
         if Config.PERSIST_DENATURED_IMAGE:
             create_dir(Config.PERSIST_DENATURED_IMAGE_OUTPUT_PATH)
 
@@ -220,8 +220,12 @@ class PrivacyMediatorApp(gabriel.proxy.CognitiveProcessThread):
                 print '{0} <-- {1}'.format(from_person, to_person)
             sys.stdout.flush()
         elif 'set_whitelist' in header_dict:
-            self.whitelist=header_dict['set_whitelist']
-            print 'server received whitelist: {}'.format(self.whitelist)
+            # remove all
+            r_server.ltrim('whitelist', 1, 0)            
+            for uid in header_dict['set_whitelist']:
+                # add to whitelist
+                r_server.rpush('whitelist', uid)
+            print 'server whitelist: {}'.format(r_server.lrange('whitelist',0,-1))
             sys.stdout.flush()            
 
         training = False
