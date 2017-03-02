@@ -463,7 +463,7 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
         if int(r_server.get('update')) == 1:
             # peopel is current people
             people_redis=r_server.lrange(people_key_word, 0, -1)
-            print('training from redis: {}'.format(people_redis))
+            print('redis updated! training from redis: {}'.format(people_redis))
             people=map(str, people_redis)
             idx=0
             images={}
@@ -475,7 +475,8 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
             self.trainSVM()
             r_server.set('update',0)
         else:
-            print('no changes indicated from redis server')
+            pass
+#            print('no changes indicated from redis server')
 
     def processFrame(self, dataURL, name):
         global images
@@ -580,7 +581,7 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
                     maxI = np.argmax(predictions)
                     confidence = predictions[maxI]
                     identity=maxI
-#                    print 'svm predict {} with {}'.format(identity, confidence)                    
+                    print 'svm predict {} with {}'.format(identity, confidence)                    
                     # if confidence is too low
                     if confidence < Config.RECOG_PROB_THRESHOLD:
                         identity=-1
@@ -591,7 +592,7 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
 
         if not training:
             if identity == -1:
-#                print "svm detect result unknown!"
+                print "svm detect result unknown!"
                 name = ""
             else:
                 name = people[identity]
