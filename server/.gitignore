@@ -13,3 +13,6 @@ demos/web/unknown*.npy
 
 models/openface/*.t7
 models/openface/*.pkl
+
+env
+./*/env
