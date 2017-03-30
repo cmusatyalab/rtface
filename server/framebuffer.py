@@ -228,9 +228,12 @@ class FaceFrameBuffer(FrameBuffer):
 #                    LOG.debug('bg-thread updated fid: {} to name {}'.format(itm.fid, identity))
 
     def flush(self):
-        self.lock.acquire()        
+        sleep(3)
+        output=[]
+        self.lock.acquire()
+        for ret in self.buf[::-1]:
+            self.fix_name(ret)
+            output.append(ret)
         self.cur_faces=[]
-        ret=self.buf
-        self.buf=[]
         self.lock.release()                
-        return ret[::-1]
+        return output

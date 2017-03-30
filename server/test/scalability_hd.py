@@ -37,7 +37,7 @@ from vision import FaceROI, drectangle_to_tuple, np_array_to_jpeg_data_url, clam
 
 # for band.mp4
 START_FRAME_IDX = 0
-TEST_FRAME_NUM = 2783
+TEST_FRAME_NUM = 101
 
 def load_vid(video_f, num_frames=1000):
     imgs=[]
@@ -90,6 +90,7 @@ def baseline(rtface, img_paths, downsample=False, shrink_ratio=1.5):
     ttp=0
     ttd=0
     ttin=0
+    ttdecode=[]
     print 'loading images'    
     imgs = load_bulk_imgs(img_paths[START_FRAME_IDX:START_FRAME_IDX+TEST_FRAME_NUM])
     print 'running test'        
@@ -104,33 +105,33 @@ def baseline(rtface, img_paths, downsample=False, shrink_ratio=1.5):
             sio = StringIO(img_raw)
             im = Image.open(sio)
             rgb_img = np.asarray(im)
-            ttd += (time.time()-ds)
-            
-            ds=time.time()
-            h, w, _ = rgb_img.shape
-            if downsample:
-                sm_image = cv2.resize(rgb_img, None, fx = 1.0 /shrink_ratio, fy = 1.0/shrink_ratio)
-#                print 'downsample time: {}'.format(time.time() - ds)
-                sm_dets = dlibutils.detect_img(detector, sm_image, upsample=0)
-                dets = dlib.rectangles()
-                for sm_det in sm_dets:
-                    dets.append(dlib.rectangle(
-                        int(sm_det.left()*shrink_ratio),
-                        int(sm_det.top()*shrink_ratio),
-                        int(sm_det.right()*shrink_ratio),
-                        int(sm_det.bottom()*shrink_ratio),                        
-                    ))
-            else:
-                dets = dlibutils.detect_img(detector, rgb_img, upsample=0)
-#            print 'detected {} faces for time: {}'.format(len(dets), time.time() - ds) 
-            for det in dets:
-                roi = drectangle_to_tuple(det)
-                (x1,y1,x2,y2) = clamp_roi(roi, 1080, 720)
-                face_pixels = rgb_img[y1:y2+1, x1:x2+1]
-                face_string = np_array_to_jpeg_data_url(face_pixels)
-                rs=time.time()
-                resp = rtface.openface_client.addFrame(face_string, 'detect')
-            ttp += (time.time()-ds)
+            ttdecode.append((time.time()-ds)*1000)
+            # ttd += (time.time()-ds)
+
+            # ds=time.time()
+            # h, w, _ = rgb_img.shape
+            # if downsample:
+            #     sm_image = cv2.resize(rgb_img, None, fx = 1.0 /shrink_ratio, fy = 1.0/shrink_ratio)
+            #     sm_dets = dlibutils.detect_img(detector, sm_image, upsample=0)
+            #     dets = dlib.rectangles()
+            #     for sm_det in sm_dets:
+            #         dets.append(dlib.rectangle(
+            #             int(sm_det.left()*shrink_ratio),
+            #             int(sm_det.top()*shrink_ratio),
+            #             int(sm_det.right()*shrink_ratio),
+            #             int(sm_det.bottom()*shrink_ratio),                        
+            #         ))
+            # else:
+            #     rgb_img = np.array(rgb_img)
+            #     dets = dlibutils.detect_img(detector, rgb_img, upsample=0)
+            # for det in dets:
+            #     roi = drectangle_to_tuple(det)
+            #     (x1,y1,x2,y2) = clamp_roi(roi, 1080, 720)
+            #     face_pixels = rgb_img[y1:y2+1, x1:x2+1]
+            #     face_string = np_array_to_jpeg_data_url(face_pixels)
+            #     rs=time.time()
+            #     resp = rtface.openface_client.addFrame(face_string, 'detect')
+            # ttp += (time.time()-ds)
 
             im.close()
             sio.close()
@@ -143,6 +144,8 @@ def baseline(rtface, img_paths, downsample=False, shrink_ratio=1.5):
     stats['processing_time']=ttp
     stats['decoding_time']=ttd
     stats['num_images']=ttin
+    ttdecode = np.asarray(ttdecode)
+    print 'average decode time: {} std: {}'.format(np.mean(ttdecode), np.std(ttdecode))
     yaml.dump(stats, open(sys.argv[2], 'a+'))
     print 'finished!!'
     
@@ -188,7 +191,7 @@ def rtface_test(transformer, img_paths):
             ds=time.time()
             sio = StringIO(img_raw)
             im = Image.open(sio)
-            rgb_img = np.asarray(im)
+            rgb_img = np.array(im)
             ttd += (time.time()-ds)
 #            print 'decoding {:.1f}'.format((time.time()-ds)*1000)
             
@@ -204,6 +207,7 @@ def rtface_test(transformer, img_paths):
             del im, ret, sio, rgb_img
             fid+=1
         del grp
+        print '# groups left: {}'.format(len(imgs))
 #        objgraph.show_growth(limit=10)   # Start counting
 #        objgraph.show_backrefs(to)
 #        objgraph.show_chain(objgraph.find_backref_chain(to,objgraph.is_proper_module))

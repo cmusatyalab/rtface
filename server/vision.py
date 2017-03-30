@@ -342,10 +342,10 @@ def enlarge_drectangles(sm_dets, enlarge_ratio):
                 int(sm_det.bottom()*enlarge_ratio))
         return det
     elif isinstance(sm_dets, tuple) and len(sm_dets) == 4:
-        return (sm_dets[0]*enlarge_ratio,
-                sm_dets[1]*enlarge_ratio,
-                sm_dets[2]*enlarge_ratio,
-                sm_dets[3]*enlarge_ratio)
+        return (int(sm_dets[0]*enlarge_ratio),
+                int(sm_dets[1]*enlarge_ratio),
+                int(sm_dets[2]*enlarge_ratio),
+                int(sm_dets[3]*enlarge_ratio))
     else:
         raise TypeError('sm_dets needs to be type dlib.drectangles or dlib.rectangle. but is {}'.format(type(sm_dets)))
 

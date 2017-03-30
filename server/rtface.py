@@ -437,7 +437,7 @@ class FaceTransformation(object):
                     # faces=self.catchup(frame, rois, img_queue, cur_bxids)
 
                     if Config.DOWNSAMPLE_TRACKING != 1:
-                        rois = [enlarge_drectangles(roi, Config.DOWNSAMPLE_TRACKING)
+                        rois = [enlarge_drectangles(roi, 1.0/Config.DOWNSAMPLE_TRACKING)
                                 for roi in rois]
                         frame = downsample(frame, Config.DOWNSAMPLE_TRACKING)
 
