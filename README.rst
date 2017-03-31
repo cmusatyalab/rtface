@@ -24,6 +24,16 @@ Real-time recognition-based face blurring for privacy-aware IoT services
 * Free software: Apache Software License 2.0
 * Documentation: https://rtface.readthedocs.io.
 
+Project Structure
+----------
+#. rtface: rtface module
+
+    #. vision: basic vision functions
+    #. utils: helper functions, including logging
+    #. rtface: main object
+    #. detect: detection process
+    #. framebuffer: frame buffer for backward tracking
+    #. recognize: recognition process
 
 Features
 --------
