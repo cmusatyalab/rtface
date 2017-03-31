@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-from demo_config import Config
 import logging
 import sys
 from operator import itemgetter
@@ -7,16 +6,9 @@ from itertools import groupby
 import pdb
 import os
 import shutil
-
-# logging.basicConfig(
-#             format='%(asctime)s %(name)-12s %(levelname)-8s %(thread)d %(message)s',
-#             filename='faceswap-proxy.log',
-#             filemode='w+'
-# )
+import dlib
 
 custom_logger_level = logging.INFO
-if Config.DEBUG:
-    custom_logger_level = logging.DEBUG
 formatter = logging.Formatter('%(asctime)-15s %(levelname)-8s %(processName)s %(message)s')
 LOG = logging.getLogger(__name__)
 LOG.setLevel(custom_logger_level)
@@ -201,3 +193,24 @@ def get_unused_port():
     addr, port = s.getsockname()
     s.close()
     return port
+
+
+def drectangle_to_tuple(drectangle):
+    if isinstance(drectangle, dlib.rectangle) or isinstance(drectangle, dlib.drectangle):
+        cur_roi = (int(drectangle.left()),
+                   int(drectangle.top()),
+                   int(drectangle.right()),
+                   int(drectangle.bottom()))
+        return cur_roi
+    else:
+        return drectangle
+
+def drectangle_to_rectangle(drectangle):
+    if isinstance(drectangle, dlib.drectangle):
+        cur_roi = (int(drectangle.left()),
+                   int(drectangle.top()),
+                   int(drectangle.right()),
+                   int(drectangle.bottom()))
+        return dlib.rectangle(*cur_roi)
+    else:
+        raise TypeError("Cannot convert {} to a dlib rectangle. Need a dlib drectangle".format(drectangle))

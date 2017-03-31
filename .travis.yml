@@ -16,3 +16,6 @@ script: pytest
 branches:
   only:
   - dev
+
+notifications:
+  email: false
