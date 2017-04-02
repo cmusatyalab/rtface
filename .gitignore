@@ -63,3 +63,10 @@ target/
 
 # pycharm
 .idea
+
+# model items
+rtface/recognizer/models/dlib
+rtface/recognizer/models/openface
+
+# data dir
+data
