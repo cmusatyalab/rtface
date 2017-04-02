@@ -16,18 +16,17 @@ ch = logging.StreamHandler(sys.stdout)
 ch.setFormatter(formatter)
 LOG.addHandler(ch)
 
-
-def getLogger(name):
-    logger = logging.getLogger(name)
+def getLogger(name, level=logging.INFO):
     handler = logging.StreamHandler(sys.stdout)
+    formatter = logging.Formatter('%(asctime)-15s %(levelname)-8s %(processName)s %(message)s')
+    handler.setFormatter(formatter)
+    logger = logging.getLogger(name)
     logger.addHandler(handler)
-    logger.setLevel(logging.DEBUG)
+    logger.setLevel(level)
     return logger
-
 
 def remove_dir(dir_name):
     shutil.rmtree(dir_name, ignore_errors=True)
-
 
 def create_dir(dir_name):
     if '~' in dir_name:

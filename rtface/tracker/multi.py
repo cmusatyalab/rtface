@@ -22,13 +22,13 @@ from rtface import utils
 DEFAULT_MAPPED_FILE_PATH = '/tmp/rtface'
 DEFAULT_MAPPED_FILE_SIZE = 3840 * 2160 * 3
 
-formatter = logging.Formatter('%(asctime)-15s %(levelname)-8s %(processName)s %(message)s')
-LOG = logging.getLogger(__name__)
-LOG.setLevel(logging.DEBUG)
-ch = logging.StreamHandler(sys.stdout)
-ch.setFormatter(formatter)
-LOG.addHandler(ch)
-
+LOG = utils.getLogger(__name__)
+# formatter = logging.Formatter('%(asctime)-15s %(levelname)-8s %(processName)s %(message)s')
+# LOG = logging.getLogger(__name__)
+# LOG.setLevel(logging.DEBUG)
+# ch = logging.StreamHandler(sys.stdout)
+# ch.setFormatter(formatter)
+# LOG.addHandler(ch)
 
 class TrackerProcessBase(Process):
     '''
@@ -165,12 +165,15 @@ class MMapTrackerProcess(TrackerProcessBase):
                 self.bx = self.init_bx
                 LOG.debug('{} {} inited at {} took: {}'.format(self, self.id, self.init_bx, (time.time() - st) * 1000))
             elif updates[0] == self.TRACK:
-                img = np.fromstring(mf[:], dtype=np.uint8).reshape(self.height, self.width, self.channels)
+                # use from buffer to prevent memory copy
+                img_bytes = np.frombuffer(mf[:], dtype=np.uint8)
+                img_bytes.flags.writeable = True
+                img = img_bytes.reshape(self.height, self.width, self.channels)
                 conf = tracker.update(img)
                 self.bx = utils.drectangle_to_rectangle(tracker.get_position())
                 ret = (conf, self.bx)
                 self.worker_op.send(ret)
-                LOG.debug('{} {} took {}'.format(self, ret, (time.time() - st) * 1000))
+                LOG.info('{} {} track took {}'.format(self, ret, (time.time() - st) * 1000))
             elif updates[0] == self.KILL:
                 LOG.debug('killed: {}'.format(self))
                 break
