@@ -116,15 +116,18 @@ class PipeTrackerProcess(TrackerProcessBase):
 
 
 class MMapTrackerProcess(TrackerProcessBase):
-    def __init__(self, filepath=DEFAULT_MAPPED_FILE_PATH):
+    def __init__(self, width, height, channels=3, filepath=DEFAULT_MAPPED_FILE_PATH):
         super(MMapTrackerProcess, self).__init__()
         self.filepath = filepath
+        self.width = width
+        self.height = height
+        self.channels = channels
 
     def start_track(self, bx):
         self.master_ip.send((self.INIT, bx))
 
     def update(self):
-        self.master_ip.send((self.TRACK))
+        self.master_ip.send((self.TRACK,))
 
     def get_position(self):
         '''
@@ -135,7 +138,7 @@ class MMapTrackerProcess(TrackerProcessBase):
 
     def clean(self):
         try:
-            self.master_ip.send((self.KILL))
+            self.master_ip.send((self.KILL,))
         except IOError as e:
             LOG.debug("pipe closed. the worker has been cleaned already")
             LOG.debug(e)
@@ -156,18 +159,18 @@ class MMapTrackerProcess(TrackerProcessBase):
                 break
             st = time.time()
             if updates[0] == self.INIT:
-                _, self.init_bx = updates[1], updates[2]
-                self.init_img = np.fromstring(mf[:], dtype=np.uint8)
+                self.init_bx = updates[1]
+                self.init_img = np.fromstring(mf[:], dtype=np.uint8).reshape(self.height, self.width, self.channels)
                 tracker.start_track(self.init_img, self.init_bx)
                 self.bx = self.init_bx
-                LOG.debug('{} {} inited at {} took: {}'.format(self, self.id, self.init_bx, time.time() - st))
+                LOG.debug('{} {} inited at {} took: {}'.format(self, self.id, self.init_bx, (time.time() - st) * 1000))
             elif updates[0] == self.TRACK:
-                img = np.fromstring(mf[:], dtype=np.uint8)
+                img = np.fromstring(mf[:], dtype=np.uint8).reshape(self.height, self.width, self.channels)
                 conf = tracker.update(img)
                 self.bx = utils.drectangle_to_rectangle(tracker.get_position())
                 ret = (conf, self.bx)
                 self.worker_op.send(ret)
-                LOG.debug('{} {} tracked: {}'.format(self, self.id, (time.time() - st) * 1000))
+                LOG.debug('{} {} took {}'.format(self, ret, (time.time() - st) * 1000))
             elif updates[0] == self.KILL:
                 LOG.debug('killed: {}'.format(self))
                 break
@@ -178,13 +181,12 @@ class MMapTrackerProcess(TrackerProcessBase):
 
     def __del__(self):
         self.clean()
-        super(MMapTrackerProcess, self).__del__()
 
 
 class MultiTrackerBase(object):
     def __init__(self):
         super(MultiTrackerBase, self).__init__()
-        self._cur_bxes = dlib.rectangles()
+        self._cur_bxes = []
         self._new_result_available = False
 
     def start_track(self, img, bxes):
@@ -198,12 +200,16 @@ class MultiTrackerBase(object):
 
 
 class MMapMultiTracker(MultiTrackerBase):
-    def __init__(self, filepath=DEFAULT_MAPPED_FILE_PATH, filesize=DEFAULT_MAPPED_FILE_SIZE):
+    def __init__(self, width, height, channels=3, filepath=DEFAULT_MAPPED_FILE_PATH):
         '''
         :param filepath: path to the file that should be memory mapped
         :param filesize: size of the memory-mapped file. It should equal to the size of input image to tracker
         '''
         super(MMapMultiTracker, self).__init__()
+        self.width = width
+        self.height = height
+        self.channels = channels
+        filesize = self.width * self.height * self.channels
         # tmpfile needs to exist before it can be memory-mapped
         self.tmpfile = open(filepath, "wb")
         self.tmpfile.write(filesize * b'\0')
@@ -221,8 +227,10 @@ class MMapMultiTracker(MultiTrackerBase):
         resize_count = num - len(self.workers)
         if resize_count >= 0:
             self.workers.extend(
-                [MMapTrackerProcess(filepath=os.path.realpath(self.tmpfile.name)) for _ in range(resize_count)])
+                [MMapTrackerProcess(self.width, self.height, channels=self.channels,
+                                    filepath=os.path.realpath(self.tmpfile.name)) for _ in range(resize_count)])
         else:
+            map(lambda worker: worker.clean(), self.workers[resize_count:])
             del self.workers[resize_count:]
         pass
 
@@ -235,7 +243,7 @@ class MMapMultiTracker(MultiTrackerBase):
         self._resize_to(len(bxes))
         map(lambda worker: worker.start(), self.workers)
         self.mf[:] = img.tostring()
-        map(lambda worker, bx: worker.start_track(bx), zip(self.workers, bxes))
+        map(lambda (worker, bx): worker.start_track(bx), zip(self.workers, bxes))
 
     def update(self, img, guess=None):
         self.mf[:] = img.tostring()
@@ -243,14 +251,20 @@ class MMapMultiTracker(MultiTrackerBase):
         self._new_result_available = True
 
     def get_position(self):
+        '''
+        :return: tuple of tracked results
+        '''
         if self._new_result_available:
-            self._cur_bxes.clear()
-            self._cur_bxes.extend([map(lambda worker: worker.get_position(), self.workers)])
+            del self._cur_bxes[:]
+            self._cur_bxes.extend(map(lambda worker: worker.get_position(), self.workers))
             self._new_result_available = False
         return self._cur_bxes
 
+    def clean(self):
+        self._resize_to(0)
+
     def __del__(self):
-        pass
+        self.clean()
 
 # def setup_mmap_file():
 #     tmpfile = open(MAPPED_FILE_PATH, "wb")
