@@ -88,6 +88,7 @@ class TestRtfaceMultiTracker(unittest.TestCase):
         print('{}x{} average tracking time {} ms'.format(tracker.width, tracker.height, np.average(ts)))
         cap.release()
 
+    @unittest.skip("skip speed test")
     def test_2160p_speed(self):
         TEST_VIDEO_PATH = 'data/test_band2_2160p.mp4'
         # for test_interview.mp4
@@ -101,6 +102,7 @@ class TestRtfaceMultiTracker(unittest.TestCase):
         tracker.clean()
         del tracker
 
+    @unittest.skip("skip speed test")
     def test_1080p_speed(self):
         TEST_VIDEO_PATH = 'data/test_band2_1080p.mp4'
         # for test_interview.mp4

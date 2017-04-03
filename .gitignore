@@ -69,4 +69,5 @@ rtface/recognizer/models/dlib
 rtface/recognizer/models/openface
 
 # data dir
-data
+data/*band2*
+vm
