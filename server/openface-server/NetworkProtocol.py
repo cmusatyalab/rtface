@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 class AppDataProtocol():
     TYPE_add_person = "add_person"
     TYPE_get_person = "get_person"

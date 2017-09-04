@@ -7,6 +7,7 @@ source /home/${USER}/torch/install/bin/torch-activate
 
 # need to pull models down if they doesn't exist yet
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+echo "Work dir is ${DIR}"
 
 openface_model_dir=$DIR/openface-server/models
 dlib_face_model=$openface_model_dir/dlib/shape_predictor_68_face_landmarks.dat

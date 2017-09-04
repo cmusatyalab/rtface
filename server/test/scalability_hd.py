@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 import os
 # must be called before dlib is set
 os.environ["OMP_NUM_THREADS"] = "1"

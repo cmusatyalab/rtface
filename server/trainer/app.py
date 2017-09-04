@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python2
 from flask import Flask, render_template, send_from_directory, request, redirect, url_for, session, request, jsonify
 from flask_oauthlib.client import OAuth
 import pdb

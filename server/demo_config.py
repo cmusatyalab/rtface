@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 import os
 class Config(object):
     GABRIEL_PATH=os.path.expanduser("~/gabriel-v2/gabriel/server")

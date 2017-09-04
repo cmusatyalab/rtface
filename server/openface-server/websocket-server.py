@@ -356,8 +356,7 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
 if __name__ == '__main__':
     log.startLogging(sys.stdout)
 
-    factory = WebSocketServerFactory("ws://localhost:{}".format(args.port),
-                                     debug=False)
+    factory = WebSocketServerFactory("ws://localhost:{}".format(args.port))
     factory.protocol = OpenFaceServerProtocol
 
     reactor.listenTCP(args.port, factory)

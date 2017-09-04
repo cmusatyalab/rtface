@@ -1,4 +1,4 @@
-#! /usr/bin/env python
+#! /usr/bin/env python2
 # in this file, the frames by default are rgb unless state otherwise by the variable name
 import concurrent_track
 from MyUtils import *
@@ -414,7 +414,7 @@ class FaceTransformation(object):
             )
             while (not stop_event.is_set()):
                 frame, fid = self.get_image_from_queue(img_queue)
-                if frame == None:
+                if frame is None:
                     continue
                 rois = detect_faces(frame,
                                     detector,

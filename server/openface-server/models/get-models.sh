@@ -41,11 +41,11 @@ if [ ! -f openface/nn4.small2.v1.t7 ]; then
   printf "This will incur about 100MB of network traffic for the models.\n"
   printf "====================================================\n\n"
 
-  wget -nv http://openface-models.storage.cmusatyalab.org/nn4.small2.v1.t7 \
+  wget -nv http://storage.cmusatyalab.org/openface-models/nn4.small2.v1.t7 \
     -O openface/nn4.small2.v1.t7
   [ $? -eq 0 ] || ( rm openface/nn4.small2.v1.t7* && die "+ nn4.small2.v1.t7: Error in wget." )
 
-  wget -nv http://openface-models.storage.cmusatyalab.org/celeb-classifier.nn4.small2.v1.pkl \
+  wget -nv http://storage.cmusatyalab.org/openface-models/celeb-classifier.nn4.small2.v1.pkl \
     -O openface/celeb-classifier.nn4.small2.v1.pkl
   [ $? -eq 0 ] || ( rm openface/celeb-classifier.nn4.small2.v1.pkl && \
                     die "+ celeb-classifier.nn4.small2.v1.pkl: Error in wget." )

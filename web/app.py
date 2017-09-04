@@ -1,4 +1,4 @@
-#! /usr/bin/env python2
+#!/usr/bin/env python2
 from flask import Flask, request, render_template, session, redirect, url_for, flash, send_from_directory, send_file, Response
 from flask.ext.bootstrap import Bootstrap
 from openfaceClient import OpenFaceClient, AsyncOpenFaceClientProcess

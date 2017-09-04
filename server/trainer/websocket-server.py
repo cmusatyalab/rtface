@@ -280,10 +280,10 @@ if __name__ == '__main__':
     contextFactory = ssl.DefaultOpenSSLContextFactory(
         os.environ.get('VIDEO_TRAINER_CERT_SECRET'),
         os.environ.get('VIDEO_TRAINER_CERT')
-                                                      )
+    )
     # factory = WebSocketServerFactory("ws://0.0.0.0:{}".format(args.port),
     #                                  debug=False)
-    factory = WebSocketServerFactory(u"wss://0.0.0.0:{}".format(args.port), debug=False)
+    factory = WebSocketServerFactory(u"wss://0.0.0.0:{}".format(args.port))
     factory.protocol = OpenFaceServerProtocol
 
     reactor.listenSSL(args.port, factory, contextFactory)

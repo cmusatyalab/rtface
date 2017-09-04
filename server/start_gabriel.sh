@@ -1,6 +1,11 @@
 #! /bin/bash
 
-USER=$(whoami)
+if [ -z ${GABRIEL_ROOT+x} ]
+then
+   echo "Gabriel Not Found. Please Specify GABRIEL_ROOT to be Gabriel's root path";
+else
+   echo "User Specifies Gabriel path to be ${GABRIEL_ROOT}";
+fi
 
 echo -e "launching Gabriel at dir ${GABRIEL_ROOT}"
 source $GABRIEL_ROOT/env/bin/activate
