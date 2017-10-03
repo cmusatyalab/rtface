@@ -46,7 +46,7 @@ sudo apt-get install libopencv-dev python-opencv python-qt4
 wget https://github.com/junjuew/RTFace-pyclient/archive/v0.1.zip
 unzip v0.1.zip
 ```
-#Run
+# Run
 1. modify following fields in config.py to point to correct RTFace server
   * GABRIEL_IP: RTFace Server IP
   * VIDEO_STREAM_PORT: 9098 unless you change the port when running RTFace server
@@ -63,3 +63,10 @@ cd RTFace-pyclient-0.1
   * RTface uses a frontal face detector, a profile face (a face that has completed turned 90 degree to the left/right) won't
   have too much luck to be detected.
 
+
+# Use start_demo.sh
+
+## Environment Variables
+   * GABRIELPATH: Path to Gabriel
+   * TORCHPATH: if specified, ${TORCHPATH}/bin/activate will be source to activate torch
+   

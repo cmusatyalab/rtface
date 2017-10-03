@@ -1,27 +1,41 @@
 #! /bin/bash
 
-USER=$(whoami)
-echo "sourcing torch: "
-echo "/home/${USER}/torch/install/bin/torch-activate"
-source /home/${USER}/torch/install/bin/torch-activate
+set -e
 
-# need to pull models down if they doesn't exist yet
+function die { echo $1; exit 42; }
+
+# Dependency checks
+# source torch if user indicates it's not activated by default
+if [[ ! -z ${TORCHPATH+x} ]]; then
+    torch_activate_path="${TORCHPATH}/bin/torch-activate"
+    echo "activate torch at ${torch_activate_path}"
+    source ${torch_activate_path}
+fi
+
+if [ -z ${GABRIELPATH+x} ]
+then
+   die "Gabriel Not Found. Please specify environment variable GABRIELPATH to be Gabriel's root directory";
+else
+   echo "User specified Gabriel at ${GABRIELPATH}";
+fi
+
+# download face detector and recognition models
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-echo "Work dir is ${DIR}"
-
 openface_model_dir=$DIR/openface-server/models
 dlib_face_model=$openface_model_dir/dlib/shape_predictor_68_face_landmarks.dat
 openface_model=$openface_model_dir/openface/nn4.small2.v1.t7
 if [ ! -f $dlib_face_model ] || [ ! -f $openface_model ]; then
-    echo -e "start downloading models"
+    echo "No models found. Start downloading dlib and openface models"
     $openface_model_dir/get-models.sh
 fi
 
-echo -e "launching Privacy Mediator at dir $DIR"
-$DIR/start_gabriel.sh 2>&1 | tee gabriel.log &
-sleep 15
+echo "launching Gabriel at ${GABRIELPATH}"
+cd $GABRIELPATH/server/bin
+./gabriel-control 2>&1 | tee /tmp/gabriel-control.log &
+sleep 5
+./gabriel-ucomm -s 127.0.0.1:8021 -n eth0 2>&1 | tee /tmp/gabriel-ucomm.log &
+sleep 5
 
-    
 if pgrep -f "gabriel-ucomm" > /dev/null
 then
     echo 'starting trainer...'
@@ -38,17 +52,3 @@ else
 fi
 
 wait
-
-
-# for trial in $(seq 1 5);
-# do
-#     if ! pgrep -f "openface_server.lua" > /dev/null;
-#     then
-# 	echo 'checking openface server status:'
-# 	echo $trial
-# 	echo 'openface server has not finished starting. wait for another 20 seconds...'
-# 	sleep 20
-#     else
-# 	break
-#     fi
-# done
