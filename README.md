@@ -68,13 +68,14 @@ Here are ports the server opens:
 
 # Client
 
-The client includes a trainer web server, a policy web server, a broadcast web server, and a video source.
-   * To train a face to be recognized, go to **https://<hostname>:10002**. You'll need to accept self-signed certificate.
-   * To change a user's policy, send HTTP post form data in the following format to **http://<hostname>:10002**
+The client includes a trainer web server, a policy web server, a broadcast web server, and a video source:
+
+   * To train a face to be recognized, go to **https://hostname:10002**. You'll need to accept self-signed certificate.
+   * To change a user's policy, send HTTP post form data in the following format to **http://hostname:10002**
    ```
    http --form POST <hostname>:10003/policy uid=<email-id> policy=<"showFace" or "blurFace">
    ```
-   * To view video streams after privacy preservation, go to **https://<hostname>:10004**
+   * To view video streams after privacy preservation, go to **https://hostname:10004**
 
 To set up video streaming source ([camera-source](https://github.com/junjuew/rtface/tree/master/camera-source)):
 
