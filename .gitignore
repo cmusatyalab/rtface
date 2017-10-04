@@ -1,0 +1,13 @@
+build
+_build
+data
+
+models/dlib/shape_predictor_68_face_landmarks.dat
+models/openface/*.t7
+models/openface/*.pkl
+
+*.pyc
+*.log
+
+env
+./*/env
