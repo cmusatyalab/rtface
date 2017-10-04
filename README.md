@@ -1,32 +1,72 @@
-# Privacy Mediator
+# Overview
+RTFace is a framework that selectively blurs a person's face based on his identity in real-time to protect user's privacy.
+It leverages object tracking to achieve real-time while running face detection using [dlib](http://dlib.net), and face recognition using [OpenFace](https://cmusatyalab.github.io/openface).
 
-## Overview ##
-Privacy Mediator is leverage the emerging cloudlet infrastructure to protect leaks of sensitive information from IoT devices.
+# Server Setup
+## Use RTFace container
+docker pull jamesjue/rtface
 
-## Privacy Mediator Server Setup ##
-### Dependency ###
+## Installation by Hand
 
-+ Compile and install dlib and opencv from source
-  + for dlib
+### Install Dependencies
 
-        sudo python setup.py install --yes USE_AVX_INSTRUCTIONS | tee build.log
+You can use Dockerfile as a reference.
 
-    A correctly installed dlib should be able to run its object detection example more than 100 fps. See dlib's [blog post] (http://blog.dlib.net/2015/02/dlib-1813-released.html)
+You'll need to install following dependencies by hand as specified by its project:
 
-  + for opencv
+* [OpenFace](https://cmusatyalab.github.io/openface/setup)
+* [Gabriel](https://github.com/cmusatyalab/gabriel)
 
-        cmake -D CMAKE_BUILD_TYPE=RELEASE -D CMAKE_INSTALL_PREFIX=/usr/local -D WITH_TBB=ON WITH_EIGEN=ON -D WITH_OPENGL=ON .. 2>&1 | tee configure.log
-        make -j$(nproc)
-        sudo make install
+In addition, install other dependencies as follows
+```
+sudo apt-get install redis-server && pip install -r server/requirements.txt
+```
 
-### Dependency ###
-* [dlib (19.0)](https://github.com/davisking/dlib/releases/tag/v19.0)
-* opencv (>=2.4)
-* [openface](https://github.com/cmusatyalab/openface/releases/tag/0.2.1)
-* [gabriel](https://github.com/cmusatyalab/gabriel/releases/tag/mobisys2016submission)
+# Client
+You need a computer with a **camera** to run the client.
 
-### Usage ###
-To start server, run server/start_demo.sh
+#Installation
+## Dependency
+* OpenCV (>=2.4)
+* pyQt4
 
-## Author ##
-Junjue Wang: junjuew at cs dot cmu dot edu
+```
+sudo apt-get install libopencv-dev python-opencv python-qt4
+```
+## rtface-client
+```
+wget https://github.com/junjuew/RTFace-pyclient/archive/v0.1.zip
+unzip v0.1.zip
+```
+# Run
+1. modify following fields in config.py to point to correct RTFace server
+  * GABRIEL_IP: RTFace Server IP
+  * VIDEO_STREAM_PORT: 9098 unless you change the port when running RTFace server
+  * RESULT_RECEIVING_PORT: 9101 unless you change the port when running RTFace server
+2.
+```
+cd RTFace-pyclient-0.1
+./ui.py
+```
+3. Please follow the [video](https://youtu.be/gQa8oScFS94) to use the interface.
+4. Tips for training a person's face
+  * 30 seconds of training is good enough
+  * please ask the user to turn the face slightly to the right, left, up, and down to capture different angles.
+  * RTface uses a frontal face detector, a profile face (a face that has completed turned 90 degree to the left/right) won't
+  have too much luck to be detected.
+
+
+# What's in this repository?
++ [start_demo](https://github.com/junjuew/rtface/tree/master/start_demo.sh): Demo starting script
+
+# Use start_demo.sh
+
+## Environment Variables to Set
+   * GABRIELPATH: Path to Gabriel
+   * TORCHPATH: if specified, ${TORCHPATH}/bin/activate will be source to activate torch
+
+## Ports
+   * 10001: Trainer face recognition websocket server
+   * 10002: Trainer Web Server
+   * 10003: Policy API Server ("showFace" or "blurFace")
+   * 10004: Broadcast Web Server
