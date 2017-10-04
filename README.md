@@ -14,7 +14,7 @@ It leverages object tracking to achieve real-time while running face detection u
 
 # Server Setup
 ## Installation
-### Option 1. Download pre-build RTFace container.
+### Option 1. Download pre-build RTFace container image.
 
 ```
 docker pull jamesjue/rtface
