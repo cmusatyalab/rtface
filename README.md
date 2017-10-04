@@ -4,7 +4,13 @@ It leverages object tracking to achieve real-time while running face detection u
 
 # What's in this repository?
 + [RTFace](https://github.com/junjuew/rtface/tree/master/RTFace): RTFace module for doing real-time face denaturing.
-+ [start_demo](https://github.com/junjuew/rtface/tree/master/start_demo.sh): Demo starting script
++ [trainer](https://github.com/junjuew/rtface/tree/master/trainer): Trainer web server for registering faces.
++ [policy](https://github.com/junjuew/rtface/tree/master/policy): Policy API server for specifying user's denaturing policy.
++ [broadcast](https://github.com/junjuew/rtface/tree/master/broadcast): Broadcast server for viewing denatured video streams.
++ [camera-source](https://github.com/junjuew/rtface/tree/master/camera-source): Video streaming from a webcamera
++ [start_demo.sh](https://github.com/junjuew/rtface/tree/master/start_demo.sh): script to start the demo.
++ [kill_demo.sh](https://github.com/junjuew/rtface/tree/master/kill_demo.sh): script to kill the demo.
++ [Dockerfile](https://github.com/junjuew/rtface/tree/master/Dockerfile): Containerization file
 
 # Server Setup
 ## Installation
@@ -36,7 +42,7 @@ In addition, install other dependencies as follows
 sudo apt-get install redis-server && pip install -r server/requirements.txt
 ```
 
-## Run
+## Run Server
 
 If you're using docker image, use
 
@@ -63,14 +69,16 @@ Here are ports the server opens:
 # Client
 
 The client includes a trainer web server, a policy web server, a broadcast web server, and a video source.
-    * To train a face to be recognized, go to *https://<hostname>:10002*. You'll need to accept self-signed certificate.
-    * To change a user's policy, send HTTP post form data in the following format to *http://<hostname>:10002*
+
+    * To train a face to be recognized, go to **https://<hostname>:10002**. You'll need to accept self-signed certificate.
+    * To change a user's policy, send HTTP post form data in the following format to **http://<hostname>:10002**
      ```
      http --form POST <hostname>:10003/policy uid=<email-id> policy=<"showFace" or "blurFace">
      ```
-    * To view video streams after privacy preservation, go to *https://<hostname>:10004*
+    * To view video streams after privacy preservation, go to **https://<hostname>:10004**
 
-To set up video streaming source (camera-source):
+To set up video streaming source ([camera-source](https://github.com/junjuew/rtface/tree/master/camera-source)):
+
    * Install dependency:
    ```
    sudo apt-get install libopencv-dev python-opencv python-qt4
