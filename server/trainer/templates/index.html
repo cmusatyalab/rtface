@@ -41,8 +41,6 @@ limitations under the License.
                     </li>
                 </ul>
                 <div id='tab-preview' class='tab-content'>
-                    <!-- <video id="videoel" width="400" height="300" -->
-                    <!--        preload="auto" loop></video> -->
                     <video id="videoel" width="150" height="150"
                            preload="auto" loop></video>
                 </div>
@@ -53,6 +51,7 @@ limitations under the License.
             
 
             <div class="content">
+              <a href="/" onclick="javascript:event.target.port=10001">Click here to accept certificate if you don't see images from your camera above</a>
               {% if authorized %}
                 <h2>Training Count:
                   <div id="tr_cnt">0</div>
@@ -71,7 +70,14 @@ limitations under the License.
                   <a href="/logout" class="btn btn-default">Sign Out</a>
                 </div>
             {% else %}
-                <h2>Please Log In to Train Faces</h2>
+                <h2>Please Enter ID to Train Faces</h2>
+                <h3>Login Via Email</h3>
+                <form action="/login_by_email" method="post">
+                  E-mail:
+                  <input type="email" name="email">
+                  <input type="submit">
+                </form>
+                <h3>Or Login Via Google</h3>
                 <a href="/login"><img src="/images/btn_google_signin_light_normal_web.png"</img></a>
             {% endif %}
             </div>
@@ -122,10 +128,10 @@ limitations under the License.
          alert("No webcam detected.");
      }
 
-     $("#serverBtn.btn-group > .btn").click(changeServerCallback);
+
      $("#trainingChk").change(trainingChkCallback);
      $("#clearChk").click(clearChkCallback);
      redrawPeople();
-     createSocket("wss:" + window.location.hostname + ":9001", "Local");
+     createSocket("wss:" + window.location.hostname + ":10001", "Local");
     </script>
 </html>

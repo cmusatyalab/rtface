@@ -8,7 +8,7 @@ function die { echo $1; exit 42; }
 # source torch if user indicates it's not activated by default
 if [[ ! -z ${TORCHPATH+x} ]]; then
     torch_activate_path="${TORCHPATH}/bin/torch-activate"
-    echo "activate torch at ${torch_activate_path}"
+    echo "Activate torch at ${torch_activate_path}"
     source ${torch_activate_path}
 fi
 
@@ -31,13 +31,17 @@ fi
 
 echo "launching Gabriel at ${GABRIELPATH}"
 cd $GABRIELPATH/server/bin
-./gabriel-control 2>&1 | tee /tmp/gabriel-control.log &
+./gabriel-control &> /tmp/gabriel-control.log &
 sleep 5
-./gabriel-ucomm -s 127.0.0.1:8021 -n eth0 2>&1 | tee /tmp/gabriel-ucomm.log &
+./gabriel-ucomm -s 127.0.0.1:8021 -n eth0 &> /tmp/gabriel-ucomm.log &
 sleep 5
 
 if pgrep -f "gabriel-ucomm" > /dev/null
 then
+    if ! $(redis-cli ping); then
+        echo 'starting redis...'
+        redis-server &
+    fi
     echo 'starting trainer...'
     $DIR/trainer/start.sh 2>&1 | tee trainer.log &
     echo 'starting policy server ...'

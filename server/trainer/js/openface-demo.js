@@ -278,31 +278,3 @@ function removeImage(hash) {
         socket.send(JSON.stringify(msg));
     }
 }
-
-function changeServerCallback() {
-    $(this).addClass("active").siblings().removeClass("active");
-    switch ($(this).html()) {
-    case "Local":
-        socket.close();
-        redrawPeople();
-        createSocket("ws:" + window.location.hostname + ":9000", "Local");
-        break;
-    case "CMU":
-        socket.close();
-        redrawPeople();
-        createSocket("ws://facerec.cmusatyalab.org:9000", "CMU");
-        break;
-    case "AWS East":
-        socket.close();
-        redrawPeople();
-        createSocket("ws://54.159.128.49:9000", "AWS-East");
-        break;
-    case "AWS West":
-        socket.close();
-        redrawPeople();
-        createSocket("ws://54.188.234.61:9000", "AWS-West");
-        break;
-    default:
-        alert("Unrecognized server: " + $(this.html()));
-    }
-}

@@ -278,8 +278,10 @@ if __name__ == '__main__':
     log.startLogging(sys.stdout)
     cur_dir=os.path.dirname(os.path.realpath(__file__))
     contextFactory = ssl.DefaultOpenSSLContextFactory(
-        os.environ.get('VIDEO_TRAINER_CERT_SECRET'),
-        os.environ.get('VIDEO_TRAINER_CERT')
+        "tls/domain.key",
+        "tls/domain.crt"
+        # os.environ.get('VIDEO_TRAINER_CERT_SECRET'),
+        # os.environ.get('VIDEO_TRAINER_CERT')
     )
     # factory = WebSocketServerFactory("ws://0.0.0.0:{}".format(args.port),
     #                                  debug=False)

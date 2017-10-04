@@ -7,8 +7,7 @@ RUN apt-get update && apt-get install -y \
     default-jre \
     python-pip \
     pssh \
-    python-psutil \
-    && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    python-psutil 
 
 ARG gabriel_version=3f0e49ecc7fc7eb3615b2d453cb8fccbca674972
 RUN cd /root && \
@@ -17,19 +16,18 @@ RUN cd /root && \
     mv gabriel-${gabriel_version} gabriel && \
     pip2 install -r ~/gabriel/server/requirements.txt && \
     rm gabriel.zip
+
+RUN apt-get update && apt-get install -y redis-server
+
+ADD . /root/rtface/server/
+RUN pip2 install -r /root/rtface/server/requirements.txt
+RUN /root/rtface/server/openface-server/models/get-models.sh
+
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+ENV TORCHPATH /root/torch/install
 ENV GABRIELPATH /root/gabriel
 
-ADD . /root/rtface
-RUN pip2 install -r /root/rtface/server/requirements.txt && \
+EXPOSE 9098 9111 10001 10002 10003 10004
 
-ADD . /root/openface
-RUN python -m pip install --upgrade --force pip
-RUN cd ~/openface && \
-    ./models/get-models.sh && \
-    pip2 install -r requirements.txt && \
-    python2 setup.py install && \
-    pip2 install --user --ignore-installed -r demos/web/requirements.txt && \
-    pip2 install -r training/requirements.txt
-
-EXPOSE 8000 9000
-CMD /bin/bash -l -c '/root/openface/demos/web/start-servers.sh'
+CMD ["/bin/bash", "-l", "/root/rtface/server/start_demo.sh"]

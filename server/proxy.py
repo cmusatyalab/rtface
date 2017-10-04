@@ -46,15 +46,26 @@ from vision import *
 from MyUtils import create_dir, get_unused_port
 import redis
 
-if os.path.isdir(Config.GABRIEL_PATH) is True:
-    sys.path.insert(0, Config.GABRIEL_PATH)
+GABRIELPATH = os.environ.get("GABRIELPATH")
+if GABRIELPATH:
+    sys.path.insert(0, os.path.join(GABRIELPATH, "server"))
 
 import gabriel
 import gabriel.proxy
 
+logger_names = gabriel.logging.loggers
+for logger_name in logger_names:
+    logger = gabriel.logging.getLogger(logger_name)
+    logger.setLevel(logging.WARNING)
+
 LOG = gabriel.logging.getLogger(__name__)
 dir_path = os.path.dirname(os.path.realpath(__file__))
 r_server = redis.StrictRedis('localhost')
+# initialize shared variables in redis
+# whether there OpenFace's model needs to be updated
+r_server.set('update', 0)
+# clear whitelist
+r_server.lrange('whitelist', 0, -1)
 
 # move to a tool?
 def process_command_line(argv):

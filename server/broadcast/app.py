@@ -1,4 +1,4 @@
-#! env/bin/python
+#!/usr/bin/env python2
 from flask import Flask, render_template, Response
 import sys
 import gevent
@@ -41,5 +41,5 @@ def video_feed():
 
 if __name__ == "__main__":
     print "launched broadcasting..."
-    http_server = WSGIServer(('0.0.0.0', 10080), app)
+    http_server = WSGIServer(('0.0.0.0', 10004), app)
     http_server.serve_forever()

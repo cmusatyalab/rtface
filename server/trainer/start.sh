@@ -2,28 +2,19 @@
 
 set -e -u
 
-function die { echo $1; exit 42; }
-
-WEBSOCKET_PORT=9001
+FACE_RECOGNITION_WEBSOCKET_PORT=10001
+TRAINER_WEB_PORT=10002
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-case $# in
-  0) ;;
-  1) HTTP_PORT=$1
-     ;;
-  2) WEBSOCKET_PORT=$2
-     ;;
-  *) die "Usage: $0 <HTTP Server Port> <WebSocket Port>"
-     ;;
-esac
+echo $DIR
 
-cd $(dirname $0)
-trap 'kill $(jobs -p)' EXIT
+cd $DIR
+WEBSOCKET_LOG='/tmp/trainer.websocket.log'
+echo "Face Recognition WebSocket Server: Logging to $WEBSOCKET_LOG"
+python2 $DIR/face-recognition-websocket-server.py --port $FACE_RECOGNITION_WEBSOCKET_PORT 2>&1 | tee $WEBSOCKET_LOG &
 
-WEBSOCKET_LOG='/tmp/openface.websocket.log'
-printf "WebSocket Server: Logging to '%s'\n\n" $WEBSOCKET_LOG
-$DIR/websocket-server.py --port $WEBSOCKET_PORT 2>&1 | tee $WEBSOCKET_LOG &
-
-printf "launching trainer website"
-$DIR/deploy.sh &
+echo "launching trainer website"
+# gunicorn --workers 2 --bind 0.0.0.0:$TRAINER_WEB_PORT wsgi:app
+# use flask debug server for now
+python2 $DIR/trainer.py
 wait

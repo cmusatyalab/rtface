@@ -563,13 +563,13 @@ class OpenFaceServerProtocol(WebSocketServerProtocol):
                     output_file_aligned = EXPERIMENT + '/' +str(name) +'/'+ phash + '_aligned.jpg'
                     aligned_img.save(output_file_aligned)
             else:
-#                print 'detecting. known people: {}'.format(people) 
+                print 'detecting. known people: {}'.format(people) 
                 if len(people) == 0:
                     identity = -1
                 elif len(people) == 1:
                     # use feature mean to distinguish between the person and the unkown
                     identity = -1
-                    if mean_features != None:
+                    if mean_features is not None:
                         dist=np.linalg.norm(rep-mean_features)
                         if dist < SINGLE_PERSON_RECOG_THRESHOLD:
                             identity=0

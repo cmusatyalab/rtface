@@ -1,36 +1,28 @@
-#Overview
+# Overview
 RTFace is a framework that selectively blurs a person's face based on his identity in real-time to protect user's privacy.
 It leverages object tracking to achieve real-time while running face detection using [dlib](http://dlib.net), and face recognition using [OpenFace](https://cmusatyalab.github.io/openface).
 
-#Server
-## Run
-1. Modify "abspath to rtface-server.qcow2" in the domain file rtface-server.xml to be the absolute path of rtface-server.qcow2 vm image
-2. boot up the virtual machine
-3. ssh (port 40022 defined in rtface-server.xml) into the virtual machine using privacy:mediator(username:password)
-4. launch Gabriel communication framework. Notice: Gabriel binds to eth0 interface by default.
-If your network interface is not named 'eth0', please modify the 'eth0' in '"def get_ip(iface = 'eth0')" in
-/home/privacy/dependency/gabriel/server/gabriel/common/network/util.py to match your interface name
+# Server Setup
+## Use RTFace container
+docker pull jamesjue/rtface
+
+## Installation by Hand
+
+### Install Dependencies
+
+You can use Dockerfile as a reference.
+
+You'll need to install following dependencies by hand as specified by its project:
+
+* [OpenFace](https://cmusatyalab.github.io/openface/setup)
+* [Gabriel](https://github.com/cmusatyalab/gabriel)
+
+In addition, install other dependencies as follows
 ```
-cd $gabriel_bin
-./gabriel-control
-```
-```
-cd $gabriel_bin
-./gabriel-ucomm
+sudo apt-get install redis-server && pip install -r server/requirements.txt
 ```
 
-5. launch openface for face recognition:
-```
-cd $rtface_bin
-./openface-server/cloudlet-demo-openface-server.py 2>&1
-```
-6. launch rtface:
-```
-cd $rtface_bin
-./proxy.py -s 127.0.0.1:8021 2>&1
-```
-
-#Client
+# Client
 You need a computer with a **camera** to run the client.
 
 #Installation
@@ -64,9 +56,20 @@ cd RTFace-pyclient-0.1
   have too much luck to be detected.
 
 
+
+# What's in this repository?
++ [start_demo](https://github.com/cmusatyalab/openface/tree/master/batch-represent): Privacy Mediator Demo Server.
++ [util](https://github.com/cmusatyalab/openface/tree/master/util): Utility scripts.
+
+
 # Use start_demo.sh
 
 ## Environment Variables
    * GABRIELPATH: Path to Gabriel
    * TORCHPATH: if specified, ${TORCHPATH}/bin/activate will be source to activate torch
-   
+
+## Ports
+   * 10001: Trainer face recognition websocket server
+   * 10002: Trainer Web Server
+   * 10003: Policy API Server
+   * 10004: Broadcast Web Server
