@@ -68,6 +68,7 @@ Here are ports the server opens:
 
 # Client
 
+## Components
 The client includes a trainer web server, a policy web server, a broadcast web server, and a video source:
 
    * To train a face to be recognized, go to **https://hostname:10002**. You'll need to accept self-signed certificate.
@@ -77,6 +78,7 @@ The client includes a trainer web server, a policy web server, a broadcast web s
    ```
    * To view video streams after privacy preservation, go to **https://hostname:10004**
 
+## Setup
 To set up video streaming source ([camera-source](https://github.com/junjuew/rtface/tree/master/camera-source)):
 
    * Install dependency:
