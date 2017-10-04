@@ -19,9 +19,9 @@ RUN cd /root && \
 
 RUN apt-get update && apt-get install -y redis-server
 
-ADD . /root/rtface/server/
-RUN pip2 install -r /root/rtface/server/requirements.txt
-RUN /root/rtface/server/openface-server/models/get-models.sh
+ADD . /root/rtface/
+RUN pip2 install -r /root/rtface/requirements.txt
+RUN /root/rtface/RTFace/openface-server/models/get-models.sh
 
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -30,4 +30,4 @@ ENV GABRIELPATH /root/gabriel
 
 EXPOSE 9098 9111 10001 10002 10003 10004
 
-CMD ["/bin/bash", "-l", "/root/rtface/server/start_demo.sh"]
+CMD ["/bin/bash", "-l", "/root/rtface/start_demo.sh"]
