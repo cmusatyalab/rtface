@@ -93,11 +93,12 @@ To set up video streaming source ([camera-source](https://github.com/junjuew/rtf
    ```
 
 ## NOTE:
-    1. Don't use camera-source's UI to add user, control user's policy, nor delete uesr.
-    2. Instead, to add user, you should use trainer web server.
-    3. To control user's policy, use policy web server.
-    4. To delete a user, log in trainer web user and click "Clear". A user is no longer registered with the system when there are no his/her training images.
-    5. For trainer web server, if you're running a container image, Google Auth doesn't work due to domain name requirement. Just use email to log in.
+
+   1. Don't use camera-source's UI to add user, control user's policy, nor delete uesr.
+   2. Instead, to add user, you should use trainer web server.
+   3. To control user's policy, use policy web server.
+   4. To delete a user, log in trainer web user and click "Clear". A user is no longer registered with the system when there are no his/her training images.
+   5. For trainer web server, if you're running a container image, Google Auth doesn't work due to domain name requirement. Just use email to log in.
 
 # FAQ
 ## Tips for training a person's face
