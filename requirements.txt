@@ -25,7 +25,7 @@ Flask-WTF==0.12
 Flask-OAuthlib==0.9.4
 functools32==3.2.3.post2
 gevent==1.2.2
-greenlet==0.4.12
+greenlet==0.4.15
 hyperlink==17.3.1
 idna==2.6
 ImageHash==3.4
