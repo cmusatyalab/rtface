@@ -40,7 +40,7 @@ matplotlib==2.0.2
 numpy==1.13.1
 olefile==0.44
 openface==0.2.1
-Pillow==4.2.1
+Pillow==6.0.0
 pyasn1==0.3.3
 pyasn1-modules==0.1.1
 pycparser==2.14
