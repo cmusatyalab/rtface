@@ -42,7 +42,7 @@ olefile==0.44
 openface==0.2.1
 Pillow==4.2.1
 pyasn1==0.3.3
-pyasn1-modules==0.1.1
+pyasn1-modules==0.2.4
 pycparser==2.14
 pycryptodome==3.6.6
 pyOpenSSL==17.5.0
