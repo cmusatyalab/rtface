@@ -44,7 +44,7 @@ Pillow==4.2.1
 pyasn1==0.3.3
 pyasn1-modules==0.1.1
 pycparser==2.14
-pycryptodome==3.6.6
+pycryptodome==3.8.1
 pyOpenSSL==17.5.0
 pyparsing==2.2.0
 python-dateutil==2.6.1
