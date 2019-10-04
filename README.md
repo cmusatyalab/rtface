@@ -116,10 +116,14 @@ webpage showing the denatured video stream.
 ## NOTE:
 
    1. Don't use camera-source's UI to add user, control user's policy, nor delete uesr.
-   2. Instead, to add user, you should use trainer web server.
-   3. To control user's policy, use policy web server.
-   4. To delete a user, log in trainer web user and click "Clear". A user is no longer registered with the system when there are no his/her training images.
+   2. Instead, to add user, you should use training webpage.
+   3. To control user's policy, use policy web api.
+   4. To delete a user, log in training web page and click "Clear". A user is no longer registered with the system when there are no his/her training images.
    5. For the trainer web page, if you're running the server inside a container, Google Auth doesn't work due to domain name requirement. Just use email to log in.
+   6. The video source desktop app and the training webpage should be
+      accessed by two different machines (e.g. desktop app on a laptop, training
+      webpage through a smartphone), as a single camera typically cannot be accessed by
+      two programs simultaneously.
 
 # FAQ
 ## Tips for training a person's face
