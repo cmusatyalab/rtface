@@ -50,7 +50,9 @@ sudo apt-get install redis-server && pip install -r server/requirements.txt
 If you're using docker image, use
 
 ```
-docker run -it --rm --name <container-name> -p 0.0.0.0:9098:9098 -p 0.0.0.0:9111:9111 -p 0.0.0.0:10001-10004:10001-10004 jamesjue/rtface
+docker run -it --rm --name <container-name> \
+-p 0.0.0.0:9098:9098 -p 0.0.0.0:9111:9111 -p 0.0.0.0:10001-10004:10001-10004 \
+jamesjue/rtface
 ```
 
 If you installed everything by hand, use
@@ -70,17 +72,6 @@ Here are ports the server opens:
    * 10004: Broadcast Web Server: for viewing privacy-aware video stream
 
 # Client
-
-## Components
-The client includes a trainer webpage, a broadcast webpage,
-and a GUI-based video capturing source:
-
-   * To train a face to be recognized, go to **https://hostname:10002**. You'll need to accept self-signed certificate.
-   * To change a user's policy, send HTTP post form data in the following format to **http://hostname:10002**
-   ```
-   http --form POST <hostname>:10003/policy uid=<email-id> policy=<"showFace" or "blurFace">
-   ```
-   * To view video streams after privacy preservation, go to **https://hostname:10004**
 
 ## Setup
 To set up video streaming source
@@ -104,6 +95,19 @@ docker run --privileged --rm -it --net host --env DISPLAY=:0 --env QT_X11_NO_MIT
    cd camera-source
    ./ui.py
    ```
+
+## How to use
+The client includes a training webpage to add/delete new users,
+a desktop GUI as the video source stream,
+and a broadcast
+webpage showing the denatured video stream.
+
+   * To train a face to be recognized, go to **https://hostname:10002**. You'll need to accept self-signed certificate.
+   * To change a user's policy, send HTTP post form data in the following format to **http://hostname:10002**
+   ```
+   http --form POST <hostname>:10003/policy uid=<email-id> policy=<"showFace" or "blurFace">
+   ```
+   * To view video streams after privacy preservation, go to **https://hostname:10004**
 
 ## NOTE:
 
