@@ -10,7 +10,10 @@ It leverages object tracking to achieve real-time while running face detection u
 + [camera-source](https://github.com/junjuew/rtface/tree/master/camera-source): Video streaming from a webcamera
 + [start_demo.sh](https://github.com/junjuew/rtface/tree/master/start_demo.sh): script to start the demo.
 + [kill_demo.sh](https://github.com/junjuew/rtface/tree/master/kill_demo.sh): script to kill the demo.
-+ [Dockerfile](https://github.com/junjuew/rtface/tree/master/Dockerfile): Containerization file
++ [Dockerfile](https://github.com/junjuew/rtface/tree/master/Dockerfile):
+  Dockerfile for building server container image
++ [Dockerfile-client](dockerfile-client): Dockerfile for building client
+  container image
 
 # Server Setup
 ## Installation
@@ -47,7 +50,7 @@ sudo apt-get install redis-server && pip install -r server/requirements.txt
 If you're using docker image, use
 
 ```
-docker run -it --rm --name <container-name> -p 0.0.0.0:9098:9098 -p 0.0.0.0:9111:9111 -p 0.0.0.0:10001-10004:10001-10004 <image-name (default: jamesjue/rtface>
+docker run -it --rm --name <container-name> -p 0.0.0.0:9098:9098 -p 0.0.0.0:9111:9111 -p 0.0.0.0:10001-10004:10001-10004 jamesjue/rtface
 ```
 
 If you installed everything by hand, use
@@ -69,7 +72,8 @@ Here are ports the server opens:
 # Client
 
 ## Components
-The client includes a trainer web server, a policy web server, a broadcast web server, and a video source:
+The client includes a trainer webpage, a broadcast webpage,
+and a GUI-based video capturing source:
 
    * To train a face to be recognized, go to **https://hostname:10002**. You'll need to accept self-signed certificate.
    * To change a user's policy, send HTTP post form data in the following format to **http://hostname:10002**
@@ -79,13 +83,22 @@ The client includes a trainer web server, a policy web server, a broadcast web s
    * To view video streams after privacy preservation, go to **https://hostname:10004**
 
 ## Setup
-To set up video streaming source ([camera-source](https://github.com/junjuew/rtface/tree/master/camera-source)):
+To set up video streaming source
+([camera-source](https://github.com/junjuew/rtface/tree/master/camera-source)):
+
+### Option 1: Container
+
+```
+docker run --privileged --rm -it --net host --env DISPLAY=:0 --env QT_X11_NO_MITSHM=1 --env SERVER_IP=<your server ip> --volume=/home/junjuew/.Xauthority:/root/.Xauthority:rw jamesjue/rtface-client
+```
+
+### Option 2: Manual Installation
 
    * Install dependency:
    ```
    sudo apt-get install libopencv-dev python-opencv python-qt4
    ```
-   * Modify *GABRIEL_IP* in camera-source/config.py to be the IP of your RTFace server
+   * set environment variable SERVER_IP to be the IP address of the rtface server
    * Run
    ```
    cd camera-source
@@ -98,7 +111,7 @@ To set up video streaming source ([camera-source](https://github.com/junjuew/rtf
    2. Instead, to add user, you should use trainer web server.
    3. To control user's policy, use policy web server.
    4. To delete a user, log in trainer web user and click "Clear". A user is no longer registered with the system when there are no his/her training images.
-   5. For trainer web server, if you're running a container image, Google Auth doesn't work due to domain name requirement. Just use email to log in.
+   5. For the trainer web page, if you're running the server inside a container, Google Auth doesn't work due to domain name requirement. Just use email to log in.
 
 # FAQ
 ## Tips for training a person's face
@@ -106,4 +119,3 @@ To set up video streaming source ([camera-source](https://github.com/junjuew/rtf
   * please ask the user to turn the face slightly to the right, left, up, and down to capture different angles.
   * RTface uses a frontal face detector, a profile face (a face that has completed turned 90 degree to the left/right) won't
   have too much luck to be detected.
-

@@ -30,10 +30,14 @@ class Controller(object):
         result_cmd_q = Queue.Queue()    
         self.result_reply_q = Queue.Queue()
         self.video_streaming_thread=VideoStreamingThread(cmd_q=stream_cmd_q)
-        stream_cmd_q.put(ClientCommand(ClientCommand.CONNECT, (Config.GABRIEL_IP, Config.VIDEO_STREAM_PORT)) )
+        if Config.GABRIEL_IP is None:
+            raise ValueError("No Server IP specified. Set SERVER_IP environment variable to the IP address of your server")
+        stream_cmd_q.put(ClientCommand(ClientCommand.CONNECT,
+                                       (Config.GABRIEL_IP, Config.VIDEO_STREAM_PORT)) )
         stream_cmd_q.put(ClientCommand(GabrielSocketCommand.STREAM, self.tokenm))    
         self.result_receiving_thread = ResultReceivingThread(cmd_q=result_cmd_q, reply_q=self.result_reply_q)    
-        result_cmd_q.put(ClientCommand(ClientCommand.CONNECT, (Config.GABRIEL_IP, Config.RESULT_RECEIVING_PORT)) )
+        result_cmd_q.put(ClientCommand(ClientCommand.CONNECT,
+                                       (Config.GABRIEL_IP, Config.RESULT_RECEIVING_PORT)) )
         result_cmd_q.put(ClientCommand(GabrielSocketCommand.LISTEN, self.tokenm))
 
         self.image_buffer=[]

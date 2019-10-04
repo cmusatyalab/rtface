@@ -1,0 +1,13 @@
+FROM ubuntu:16.04
+MAINTAINER Junjue Wang <junjuew@cs.cmu.edu>
+
+RUN apt-get update && apt-get install -y \
+    libopencv-dev \
+    python-opencv \
+    python-qt4
+
+COPY . /rtface
+
+RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+CMD ["/rtface/camera-source/ui.py"]
