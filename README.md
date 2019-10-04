@@ -80,7 +80,11 @@ To set up video streaming source
 ### Option 1: Container
 
 ```
-docker run --privileged --rm -it --net host --env DISPLAY=:0 --env QT_X11_NO_MITSHM=1 --env SERVER_IP=<your server ip> --volume=/home/junjuew/.Xauthority:/root/.Xauthority:rw jamesjue/rtface-client
+docker run --privileged --rm -it --net host \
+--volume=/home/junjuew/.Xauthority:/root/.Xauthority:rw \
+--env DISPLAY=:0 --env QT_X11_NO_MITSHM=1 \
+--env SERVER_IP=<your server ip> \
+jamesjue/rtface-client
 ```
 
 ### Option 2: Manual Installation
