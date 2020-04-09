@@ -11,9 +11,9 @@ RUN apt-get update && apt-get install -y \
 
 ARG gabriel_version=3f0e49ecc7fc7eb3615b2d453cb8fccbca674972
 RUN cd /root && \
-    wget --output-document=gabriel.zip https://github.com/cmusatyalab/gabriel/archive/${gabriel_version}.zip && \
+    wget --output-document=gabriel.zip https://github.com/cmusatyalab/gabriel-instruction/archive/${gabriel_version}.zip && \
     unzip gabriel.zip && \
-    mv gabriel-${gabriel_version} gabriel && \
+    mv gabriel-instruction-${gabriel_version} gabriel && \
     pip2 install -r ~/gabriel/server/requirements.txt && \
     rm gabriel.zip
 
