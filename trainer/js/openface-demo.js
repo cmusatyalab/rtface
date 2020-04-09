@@ -200,8 +200,7 @@ function umSuccess(stream) {
     if (vid.mozCaptureStream) {
         vid.mozSrcObject = stream;
     } else {
-        vid.src = (window.URL && window.URL.createObjectURL(stream)) ||
-            stream;
+        vid.srcObject = stream;
     }
     vid.play();
     vidReady = true;

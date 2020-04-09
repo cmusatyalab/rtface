@@ -1,5 +1,5 @@
 FROM bamos/openface
-MAINTAINER Junjue Wang <junjuew@cs.cmu.edu>
+MAINTAINER Satyalab, satya-group@lists.andrew.cmu.edu
 
 RUN apt-get update && apt-get install -y \
     gcc \
