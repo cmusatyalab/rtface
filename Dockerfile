@@ -20,7 +20,8 @@ RUN cd /root && \
 RUN apt-get update && apt-get install -y redis-server
 
 ADD . /root/rtface/
-RUN pip2 install -r /root/rtface/requirements.txt
+RUN pip2 install --ignore-installed -r /root/rtface/requirements.txt
+RUN pip2 install openface==0.2.1 
 RUN /root/rtface/RTFace/openface-server/models/get-models.sh
 
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
