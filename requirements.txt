@@ -41,7 +41,7 @@ numpy==1.13.1
 olefile==0.44
 requests-oauthlib==1.1.0
 oauthlib<3.0.0
-Pillow==6.2.2
+Pillow==8.2.0
 pyasn1==0.3.3
 pyasn1-modules==0.1.1
 pycparser==2.14
