@@ -37,7 +37,7 @@ jsmin==2.2.1
 Mako==1.0.4
 MarkupSafe==0.23
 matplotlib==2.0.2
-numpy==1.13.1
+numpy==1.22.0
 olefile==0.44
 requests-oauthlib==1.1.0
 oauthlib<3.0.0
